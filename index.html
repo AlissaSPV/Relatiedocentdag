@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alissa's mooie app</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @keyframes confetti-fall {
+        0% {
+          opacity: 0;
+          transform: translate3d(0, -12vh, 0) rotate(0deg) scale(.7);
+        }
+        10% { opacity: 1; }
+        70% { opacity: 1; }
+        100% {
+          opacity: 0;
+          transform: translate3d(var(--drift), 115vh, 0) rotate(var(--rotation)) scale(1);
+        }
+      }
+
+      @keyframes celebration-in {
+        from { opacity: 0; transform: translate(-50%, -50%) scale(.6) rotate(-4deg); }
+        60% { transform: translate(-50%, -50%) scale(1.08) rotate(2deg); }
+        to { opacity: 1; transform: translate(-50%, -50%) scale(1) rotate(0); }
+      }
+
+      @keyframes explosion-flash {
+        0% { opacity: 0; }
+        8% { opacity: 1; }
+        28% { opacity: .35; }
+        100% { opacity: 0; }
+      }
+
+      @keyframes explosion-core {
+        0% { opacity: 0; transform: scale(.05) rotate(-20deg); filter: brightness(3); }
+        18% { opacity: 1; transform: scale(1.35) rotate(8deg); filter: brightness(1.8); }
+        42% { transform: scale(.95) rotate(-3deg); filter: brightness(1); }
+        100% { opacity: 1; transform: scale(1) rotate(0); }
+      }
+
+      @keyframes shockwave {
+        from { opacity: .9; transform: scale(.1); }
+        to { opacity: 0; transform: scale(4); }
+      }
+
+      @keyframes screen-shake {
+        0%, 100% { transform: translate(0); }
+        15% { transform: translate(-12px, 7px); }
+        30% { transform: translate(10px, -8px); }
+        45% { transform: translate(-7px, -5px); }
+        60% { transform: translate(6px, 5px); }
+        75% { transform: translate(-3px, 2px); }
+      }
+
+      @keyframes wrong-answer-pulse {
+        0%, 100% { opacity: 0; }
+        50% { opacity: 1; }
+      }
+
+      .confetti-piece {
+        top: -1rem;
+        animation: confetti-fall var(--duration) cubic-bezier(.2, .7, .2, 1) var(--delay) both;
+      }
+
+      .celebration-message { animation: celebration-in .55s cubic-bezier(.2, .9, .3, 1.3) both; }
+      .explosion-overlay { animation: screen-shake .65s ease-out both; }
+      .explosion-flash { animation: explosion-flash 1.2s ease-out both; }
+      .explosion-core { animation: explosion-core .9s cubic-bezier(.15, .8, .25, 1.25) both; }
+      .shockwave { animation: shockwave 1.25s ease-out both; }
+      .shockwave-delayed { animation-delay: .18s; }
+      .wrong-answer-pulse { animation: wrong-answer-pulse .45s ease-in-out 3; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .confetti-piece,
+        .celebration-message,
+        .explosion-overlay,
+        .explosion-flash,
+        .explosion-core,
+        .shockwave,
+        .wrong-answer-pulse {
+          animation-duration: .01ms !important;
+          animation-iteration-count: 1 !important;
+        }
+      }
+    </style>
+  </head>
+
+  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+    <div id="app">
+      <section
+        v-if="!gameStarted"
+        class="flex min-h-screen items-center justify-center px-6 py-12"
+      >
+        <div class="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-xl sm:p-14">
+          <p class="text-sm font-bold uppercase tracking-[0.25em] text-indigo-600">
+            SPV Challenge
+          </p>
+          <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
+            Kraak de veiligheidscode
+          </h1>
+          <p class="mx-auto mt-5 max-w-md leading-7 text-slate-600">
+            Voltooi de assessments, verzamel de letters en ontdek het verborgen woord.
+          </p>
+          <button
+            type="button"
+            class="mt-8 w-full rounded-xl bg-indigo-600 px-6 py-4 text-lg font-bold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+            @click="startGame"
+          >
+            Spelen
+          </button>
+        </div>
+      </section>
+
+      <template v-else>
+      <div
+        v-if="explosionVisible"
+        class="explosion-overlay pointer-events-none fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-red-950/80"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div class="explosion-flash absolute inset-0 bg-yellow-200"></div>
+        <div class="shockwave absolute h-52 w-52 rounded-full border-[18px] border-orange-400"></div>
+        <div class="shockwave shockwave-delayed absolute h-52 w-52 rounded-full border-[10px] border-yellow-200"></div>
+        <div class="explosion-core relative text-center text-white">
+          <p class="text-9xl drop-shadow-[0_0_35px_rgba(251,146,60,1)]" aria-hidden="true">💥</p>
+          <p class="mt-5 text-4xl font-black uppercase tracking-tight">De bom is ontploft!</p>
+          <p v-if="explodedAssessmentTitle" class="mt-2 text-lg font-semibold text-red-100">
+            {{ explodedAssessmentTitle }}
+          </p>
+        </div>
+      </div>
+
+      <div
+        v-if="wrongAnswerPulse"
+        class="wrong-answer-pulse pointer-events-none fixed inset-0 z-[90] border-[12px] border-red-600 bg-red-600/30"
+        aria-hidden="true"
+      ></div>
+
+      <div
+        v-if="confettiVisible"
+        class="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-slate-950/30"
+        role="status"
+        aria-live="assertive"
+      >
+        <span
+          v-for="piece in confettiPieces"
+          :key="piece.id"
+          class="confetti-piece absolute h-3 w-3 rounded-sm shadow-sm"
+          :class="piece.color"
+          :style="{
+            left: piece.left,
+            '--drift': piece.drift,
+            '--rotation': piece.rotation,
+            '--duration': piece.duration,
+            '--delay': piece.delay,
+          }"
+        ></span>
+        <div class="celebration-message absolute left-1/2 top-1/2 rounded-3xl bg-white px-10 py-8 text-center shadow-2xl">
+          <p class="text-6xl" aria-hidden="true">🎉</p>
+          <p class="mt-3 text-3xl font-black uppercase tracking-tight text-emerald-600">
+            Bom ontmanteld
+          </p>
+        </div>
+      </div>
+
+      <aside
+        class="fixed left-4 top-4 z-50 min-w-40 rounded-xl border border-slate-200 bg-white px-5 py-4 text-center shadow-lg"
+        role="timer"
+      >
+        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Speeltijd</p>
+        <p class="mt-1 font-mono text-2xl font-bold tabular-nums text-slate-800">
+          {{ formatTimePlayed(gameState.timePlayed) }}
+        </p>
+        <p class="mt-2 border-t border-slate-200 pt-2 text-sm text-slate-600">
+          Foute pogingen:
+          <span class="font-bold text-slate-900">{{ gameState.totalWrongInputs }}</span>
+        </p>
+      </aside>
+
+      <aside
+        v-if="gameState.hasPunishment"
+        class="fixed right-4 top-4 z-50 min-w-40 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-center shadow-lg"
+        role="timer"
+        aria-live="polite"
+      >
+        <p class="text-xs font-bold uppercase tracking-wider text-red-600">Straftijd</p>
+        <p class="mt-1 font-mono text-3xl font-bold tabular-nums text-red-800">
+          {{ formatPunishmentTime(gameState.punishmentTime) }}
+        </p>
+      </aside>
+
+      <main class="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-10 lg:px-8">
+        <section aria-label="Challengewoord" class="overflow-x-auto py-8">
+          <div class="mx-auto flex min-w-max justify-center gap-2 sm:gap-4">
+            <label
+              v-for="(char, index) in chars"
+              :key="index"
+              class="flex flex-col items-center gap-2"
+            >
+              <span class="sr-only">Letter {{ index + 1 }}</span>
+              <input
+                :value="studentAnswers[index]"
+                type="text"
+                maxlength="1"
+                autocomplete="off"
+                :disabled="gameState.hasPunishment"
+                class="h-12 w-10 border-0 border-b-2 bg-transparent text-center text-xl font-bold uppercase outline-none transition focus:ring-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:opacity-60 sm:w-12"
+                :class="isLetterVisible(index) && !gameState.hasPunishment ? 'border-emerald-500 text-emerald-700' : 'border-slate-400 text-slate-900 focus:border-indigo-600'"
+                @input="handleLetterInput(index, $event)"
+              />
+              <span class="text-xs text-slate-400">{{ index + 1 }}</span>
+            </label>
+          </div>
+
+          <p
+            v-if="codeCracked"
+            class="mx-auto mt-6 w-fit rounded-full bg-emerald-100 px-5 py-2 text-sm font-semibold text-emerald-800"
+            role="status"
+          >
+            Code gekraakt! Het woord is VEILIGHEID.
+          </p>
+          <p
+            v-else-if="codeIncorrect"
+            class="mx-auto mt-6 w-fit rounded-full bg-red-100 px-5 py-2 text-sm font-semibold text-red-800"
+            role="alert"
+          >
+            De code is incorrect. Probeer het opnieuw.
+          </p>
+        </section>
+
+        <section class="grid gap-6 py-16 sm:grid-cols-2 lg:grid-cols-3">
+          <article
+            v-for="assessment in assesmentData"
+            :key="assessment.id"
+            class="h-[32rem] [perspective:1200px]"
+          >
+            <div
+              class="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]"
+              :class="{ '[transform:rotateY(180deg)]': isCardFlipped(assessment.id) }"
+            >
+              <div
+                class="absolute inset-0 flex flex-col rounded-2xl border p-6 shadow-sm [backface-visibility:hidden]"
+                :class="assessment.state.isDismanteld
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : assessment.state.timeLeft
+                    ? 'border-slate-200 bg-white'
+                    : 'border-red-500 bg-red-50'"
+              >
+                <p class="text-sm font-semibold uppercase tracking-wider text-indigo-600">
+                  {{ assessment.theme }}
+                </p>
+                <h2 class="mt-3 text-xl font-bold tracking-tight text-slate-900">
+                  {{ assessment.title }}
+                </h2>
+                <p
+                  v-if="assessmentCharIndexes[assessment.id] !== undefined"
+                  class="mt-3 text-sm text-slate-500"
+                >
+                  Gekoppeld aan letterpositie {{ assessmentCharIndexes[assessment.id] + 1 }}
+                </p>
+
+                <button
+                  type="button"
+                  class="mt-auto rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                  @click="turnCard(assessment)"
+                >
+                  Bekijk opdracht
+                </button>
+              </div>
+
+              <div
+                class="absolute inset-0 overflow-y-auto rounded-2xl border p-6 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]"
+                :class="assessment.state.isDismanteld
+                  ? 'border-emerald-500 bg-emerald-50'
+                  : assessment.state.timeLeft
+                    ? 'border-indigo-200 bg-indigo-50'
+                    : 'border-red-500 bg-red-50'"
+              >
+                <div class="mb-5 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white shadow-md">
+                  <span class="text-xs font-bold uppercase tracking-widest text-red-400">Bomklok</span>
+                  <span class="font-mono text-2xl font-black tabular-nums">
+                    {{ formatAssessmentTime(assessmentTimers[assessment.id] ?? assessment.timing.durationMinutes * 60) }}
+                  </span>
+                </div>
+
+                <p class="text-sm font-semibold uppercase tracking-wider text-indigo-600">Situatie</p>
+                <h3 class="mt-2 font-bold text-slate-900">{{ assessment.situation.location }}</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ assessment.situation.description }}</p>
+                <p class="mt-3 rounded-lg bg-white p-3 text-sm italic text-slate-700">
+                  “{{ assessment.situation.centralistMessage }}”
+                </p>
+
+                <p class="mt-6 text-sm font-semibold uppercase tracking-wider text-indigo-600">Opdracht</p>
+                <h3 class="mt-2 font-bold text-slate-900">{{ assessment.assignment.title }}</h3>
+                <p class="mt-2 text-sm leading-6 text-slate-600">{{ assessment.assignment.description }}</p>
+
+                <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                  <li v-for="objective in assessment.assignment.objectives" :key="objective">
+                    {{ objective }}
+                  </li>
+                </ul>
+
+                <label class="mt-6 block">
+                  <span class="text-sm font-semibold text-slate-900">Jouw antwoord</span>
+                  <textarea
+                    :value="assessmentAnswers[assessment.id] ?? ''"
+                    rows="3"
+                    :disabled="gameState.hasPunishment || assessment.state.isDismanteld || !assessment.state.timeLeft"
+                    class="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
+                    placeholder="Vul hier je antwoord in"
+                    @input="updateAssessmentAnswer(assessment.id, $event)"
+                  ></textarea>
+                </label>
+
+                <button
+                  type="button"
+                  :disabled="gameState.hasPunishment || assessment.state.isDismanteld || !assessment.state.timeLeft"
+                  class="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  @click="submitAssessmentAnswer(assessment)"
+                >
+                  Ontmantel
+                </button>
+
+                <p
+                  v-if="assessment.state.isDismanteld"
+                  class="mt-3 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-700"
+                >
+                  Bom ontmanteld!
+                </p>
+
+                <button
+                  type="button"
+                  class="mt-6 w-full rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                  @click="turnCard(assessment)"
+                >
+                  Terug
+                </button>
+              </div>
+            </div>
+          </article>
+        </section>
+      </main>
+      </template>
+    </div>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+      const { createApp, onMounted, onUnmounted, ref, watch } = Vue;
+
+      const assesmentData = ref([
+        {
+          id: 1,
+          answer: 'test',
+          state: {
+            isDismanteld: false,
+            timeLeft: true,
+          },
+          title: 'Het sporenonderzoek',
+          theme: 'Kijken als een professional',
+          card: {
+            label: 'Post 1',
+            summary: 'Onderzoek een illegale afvaldumping, beoordeel de sporen en wijs de meest waarschijnlijke verdachte aan.',
+            icon: 'search',
+            accentColor: 'indigo',
+          },
+          timing: {
+            durationMinutes: 10,
+            warningAfterMinutes: 7,
+            startsWhen: 'De centralist de opdracht start',
+            isVisibleInApp: true,
+          },
+          situation: {
+            location: 'Bos en dumplocatie',
+            description: 'Tijdens een surveillance door het bos ontvangt de groep een melding van een mogelijke illegale afvaldumping. De daders zijn verdwenen, maar hebben verschillende sporen achtergelaten.',
+            centralistMessage: 'Jullie hebben maximaal 10 minuten om de locatie te onderzoeken. Daarna vervallen de sporen en moet de melding worden afgesloten.',
+          },
+          assignment: {
+            title: 'Onderzoek de plaats van het incident',
+            description: 'Zoek naar aanwijzingen, leg verbanden tussen de gevonden sporen en bepaal wie de meest waarschijnlijke verdachte is.',
+            objectives: [
+              'De locatie zorgvuldig observeren',
+              'Relevante en irrelevante aanwijzingen onderscheiden',
+              'Verbanden tussen sporen leggen',
+              'Een onderbouwde verdachte aanwijzen',
+            ],
+          },
+        },
+        {
+          id: 2,
+          answer: 'test',
+          state: {
+            isDismanteld: false,
+            timeLeft: true,
+          },
+          title: 'Communicatie en omgaan met emotie en weerstand',
+          theme: 'Communiceren onder druk',
+          card: {
+            label: 'Post 2',
+            summary: 'Ondersteun een BOA, de-escaleer een gespannen gesprek en handel de bekeuringssituatie professioneel af.',
+            icon: 'message-circle',
+            accentColor: 'amber',
+          },
+          timing: {
+            durationMinutes: 10,
+            warningAfterMinutes: null,
+            startsWhen: 'De centralist de opdracht start',
+            isVisibleInApp: true,
+          },
+          situation: {
+            location: 'Afgesloten natuurgebied tijdens het broedseizoen',
+            description: 'Een BOA spreekt een wandelaar aan die zich in verboden gebied bevindt en wil een bekeuring uitschrijven. De wandelaar weigert mee te werken, blijft discussiëren en loopt dreigend dichterbij.',
+            centralistMessage: 'Jullie hebben maximaal 10 minuten de tijd om de situatie op een professionele manier af te handelen.',
+          },
+          assignment: {
+            title: 'Ondersteun de BOA',
+            description: 'Bepaal als groep wie het gesprek voert en handel de situatie professioneel af.',
+            objectives: [
+              'De rust bewaren',
+              'Professioneel communiceren',
+              'De situatie de-escaleren',
+              'De bekeuringssituatie correct afhandelen',
+            ],
+          },
+        },
+      ]);
+
+      createApp({
+        setup() {
+          const chars = ref([
+            'V',
+            'E',
+            'I',
+            'L',
+            'I',
+            'G',
+            'H',
+            'E',
+            'I',
+            'D',
+          ]);
+          const assessmentCharIndexes = ref({
+            1: 0,
+            2: 3,
+            3: 5,
+            4: 6,
+          });
+          const assessmentCompletion = ref({
+            1: false,
+            2: false,
+            3: false,
+            4: false,
+          });
+          const studentAnswers = ref(Array(chars.value.length).fill(''));
+          const codeCracked = ref(false);
+          const codeIncorrect = ref(false);
+          const flippedCardIds = ref([]);
+          const assessmentTimers = ref({});
+          const assessmentAnswers = ref({});
+          const defusedAssessmentIds = ref([]);
+          const confettiVisible = ref(false);
+          const wrongAnswerPulse = ref(false);
+          const explosionVisible = ref(false);
+          const explodedAssessmentTitle = ref('');
+          const explodedAssessmentIds = ref([]);
+          const confettiPieces = Array.from({ length: 70 }, (_, index) => ({
+            id: index,
+            left: `${(index * 37) % 100}%`,
+            drift: `${((index * 29) % 240) - 120}px`,
+            rotation: `${540 + ((index * 47) % 720)}deg`,
+            duration: `${1.8 + (index % 7) * 0.22}s`,
+            delay: `${(index % 14) * 55}ms`,
+            color: ['bg-red-500', 'bg-yellow-400', 'bg-emerald-500', 'bg-blue-500', 'bg-fuchsia-500'][index % 5],
+          }));
+          const gameStarted = ref(false);
+          const gameState = ref({
+            totalWrongInputs: 0,
+            timePlayed: {
+              totalSeconds: 0,
+              hours: 0,
+              minutes: 0,
+              seconds: 0,
+            },
+            hasAnswer: false,
+            hasPunishment: false,
+            punishmentTime: 0,
+          });
+          const gameStorageKey = 'spvChallengeGameState';
+          let gameTimer = null;
+
+          function startGame() {
+            if (gameStarted.value) return;
+
+            gameStarted.value = true;
+            startGameLoop();
+          }
+
+          function startGameLoop() {
+            if (gameTimer !== null) return;
+            gameTimer = window.setInterval(updateGameTimer, 1000);
+          }
+
+          function saveGameState() {
+            const savedGame = {
+              gameStarted: gameStarted.value,
+              gameState: gameState.value,
+              studentAnswers: studentAnswers.value,
+              assessmentCompletion: assessmentCompletion.value,
+              assessmentTimers: assessmentTimers.value,
+              assessmentAnswers: assessmentAnswers.value,
+              defusedAssessmentIds: defusedAssessmentIds.value,
+              explodedAssessmentIds: explodedAssessmentIds.value,
+              assessmentStates: assesmentData.value.map((assessment) => ({
+                id: assessment.id,
+                state: assessment.state,
+              })),
+            };
+
+            window.localStorage.setItem(gameStorageKey, JSON.stringify(savedGame));
+          }
+
+          function restoreGameState() {
+            const storedGame = window.localStorage.getItem(gameStorageKey);
+            if (!storedGame) return;
+
+            try {
+              const savedGame = JSON.parse(storedGame);
+
+              gameStarted.value = savedGame.gameStarted === true;
+              studentAnswers.value = Array.isArray(savedGame.studentAnswers)
+                ? savedGame.studentAnswers.slice(0, chars.value.length)
+                : studentAnswers.value;
+              assessmentCompletion.value = {
+                ...assessmentCompletion.value,
+                ...savedGame.assessmentCompletion,
+              };
+              assessmentTimers.value = {
+                ...assessmentTimers.value,
+                ...savedGame.assessmentTimers,
+              };
+              assessmentAnswers.value = {
+                ...assessmentAnswers.value,
+                ...savedGame.assessmentAnswers,
+              };
+              defusedAssessmentIds.value = Array.isArray(savedGame.defusedAssessmentIds)
+                ? savedGame.defusedAssessmentIds
+                : defusedAssessmentIds.value;
+              explodedAssessmentIds.value = Array.isArray(savedGame.explodedAssessmentIds)
+                ? savedGame.explodedAssessmentIds
+                : explodedAssessmentIds.value;
+
+              if (Array.isArray(savedGame.assessmentStates)) {
+                savedGame.assessmentStates.forEach((savedAssessment) => {
+                  const assessment = assesmentData.value.find(
+                    (item) => item.id === savedAssessment.id,
+                  );
+
+                  if (assessment?.state) {
+                    assessment.state = {
+                      ...assessment.state,
+                      ...savedAssessment.state,
+                    };
+                  }
+                });
+              }
+
+              if (savedGame.gameState) {
+                gameState.value = {
+                  ...gameState.value,
+                  ...savedGame.gameState,
+                  timePlayed: {
+                    ...gameState.value.timePlayed,
+                    ...savedGame.gameState.timePlayed,
+                  },
+                };
+              }
+
+              checkCode();
+
+              if (gameStarted.value) {
+                startGameLoop();
+              }
+            } catch (error) {
+              console.warn('De opgeslagen spelstatus kon niet worden geladen.', error);
+            }
+          }
+
+          function completeAssessmentInTime(assessmentId) {
+            assessmentCompletion.value[assessmentId] = true;
+
+            const charIndex = assessmentCharIndexes.value[assessmentId];
+            if (charIndex !== undefined) {
+              studentAnswers.value[charIndex] = chars.value[charIndex];
+              checkCode();
+            }
+          }
+
+          function normalizeAnswer(answer) {
+            return String(answer).toLowerCase().replace(/\s+/g, '');
+          }
+
+          function updateAssessmentAnswer(assessmentId, event) {
+            assessmentAnswers.value[assessmentId] = event.target.value;
+          }
+
+          function submitAssessmentAnswer(assessment) {
+            const enteredAnswer = assessmentAnswers.value[assessment.id] ?? '';
+            const isCorrect =
+              normalizeAnswer(enteredAnswer) === normalizeAnswer(assessment.answer);
+
+            if (!isCorrect) {
+              triggerWrongAnswerPulse();
+              return;
+            }
+
+            if (!defusedAssessmentIds.value.includes(assessment.id)) {
+              defusedAssessmentIds.value = [...defusedAssessmentIds.value, assessment.id];
+            }
+
+            assessment.state.isDismanteld = true;
+            completeAssessmentInTime(assessment.id);
+
+            showConfetti();
+          }
+
+          function showConfetti() {
+            confettiVisible.value = true;
+            window.setTimeout(() => {
+              confettiVisible.value = false;
+            }, 4000);
+          }
+
+          function triggerWrongAnswerPulse() {
+            wrongAnswerPulse.value = true;
+            window.setTimeout(() => {
+              wrongAnswerPulse.value = false;
+            }, 1400);
+          }
+
+          function triggerExplosion(assessment) {
+            if (explodedAssessmentIds.value.includes(assessment.id)) return;
+
+            explodedAssessmentIds.value = [
+              ...explodedAssessmentIds.value,
+              assessment.id,
+            ];
+            explodedAssessmentTitle.value = assessment.title;
+            explosionVisible.value = true;
+
+            window.setTimeout(() => {
+              explosionVisible.value = false;
+              explodedAssessmentTitle.value = '';
+            }, 3500);
+          }
+
+          function handleLetterInput(index, event) {
+            const value = event.target.value.slice(0, 1).toUpperCase();
+            studentAnswers.value[index] = value;
+            event.target.value = value;
+            checkCode(true);
+          }
+
+          function checkCode(isStudentAttempt = false) {
+            const allFieldsFilled = studentAnswers.value.every(
+              (answer) => answer.length === 1,
+            );
+            const allLettersCorrect = studentAnswers.value.every(
+              (answer, index) => answer === chars.value[index],
+            );
+
+            codeCracked.value = allFieldsFilled && allLettersCorrect;
+            codeIncorrect.value = allFieldsFilled && !allLettersCorrect;
+
+            if (codeCracked.value) {
+              gameState.value.hasAnswer = true;
+            }
+
+            if (codeIncorrect.value && isStudentAttempt) {
+              registerWrongInput();
+            }
+          }
+
+          function registerWrongInput() {
+            gameState.value.totalWrongInputs += 1;
+
+            if (
+              !gameState.value.hasPunishment &&
+              gameState.value.punishmentTime === 0
+            ) {
+              gameState.value.hasPunishment = true;
+              gameState.value.punishmentTime = 2 * 60;
+            }
+          }
+
+          function formatPunishmentTime(totalSeconds) {
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+          }
+
+          function formatTimePlayed(timePlayed) {
+            const hours = String(timePlayed.hours).padStart(2, '0');
+            const minutes = String(timePlayed.minutes).padStart(2, '0');
+            const seconds = String(timePlayed.seconds).padStart(2, '0');
+            return `${hours}:${minutes}:${seconds}`;
+          }
+
+          function formatAssessmentTime(totalSeconds) {
+            return formatPunishmentTime(totalSeconds);
+          }
+
+          function updateGameTimer() {
+            const timePlayed = gameState.value.timePlayed;
+
+            if (!gameState.value.hasAnswer) {
+              timePlayed.totalSeconds += 1;
+              timePlayed.hours = Math.floor(timePlayed.totalSeconds / 3600);
+              timePlayed.minutes = Math.floor((timePlayed.totalSeconds % 3600) / 60);
+              timePlayed.seconds = timePlayed.totalSeconds % 60;
+            }
+
+            if (
+              gameState.value.hasPunishment &&
+              gameState.value.punishmentTime > 0
+            ) {
+              gameState.value.punishmentTime -= 1;
+
+              if (gameState.value.punishmentTime === 0) {
+                gameState.value.hasPunishment = false;
+              }
+            }
+
+            Object.keys(assessmentTimers.value).forEach((assessmentId) => {
+              const assessment = assesmentData.value.find(
+                (item) => String(item.id) === String(assessmentId),
+              );
+
+              if (
+                assessmentTimers.value[assessmentId] > 0 &&
+                !assessment?.state.isDismanteld
+              ) {
+                assessmentTimers.value[assessmentId] -= 1;
+              }
+
+              if (assessmentTimers.value[assessmentId] === 0) {
+                if (assessment) {
+                  assessment.state.timeLeft = false;
+
+                  if (!assessment.state.isDismanteld) {
+                    triggerExplosion(assessment);
+                  }
+                }
+              }
+            });
+          }
+
+          watch(
+            [gameStarted, gameState, studentAnswers, assessmentCompletion, assessmentTimers, assessmentAnswers, defusedAssessmentIds, explodedAssessmentIds, assesmentData],
+            saveGameState,
+            { deep: true },
+          );
+
+          onMounted(() => {
+            restoreGameState();
+          });
+
+          onUnmounted(() => {
+            if (gameTimer !== null) {
+              window.clearInterval(gameTimer);
+            }
+          });
+
+          function isLetterVisible(charIndex) {
+            const assessmentId = Object.keys(assessmentCharIndexes.value).find(
+              (id) => assessmentCharIndexes.value[id] === charIndex,
+            );
+
+            return assessmentId
+              ? assessmentCompletion.value[assessmentId] === true
+              : false;
+          }
+
+          function isCardFlipped(id) {
+            return flippedCardIds.value.includes(id);
+          }
+
+          function startAssessmentTimer(assessment) {
+            if (assessmentTimers.value[assessment.id] === undefined) {
+              assessmentTimers.value[assessment.id] = assessment.timing.durationMinutes * 60;
+            }
+          }
+
+          function turnCard(assessment) {
+            const id = assessment.id;
+
+            if (isCardFlipped(id)) {
+              flippedCardIds.value = flippedCardIds.value.filter((cardId) => cardId !== id);
+              return;
+            }
+
+            startAssessmentTimer(assessment);
+            flippedCardIds.value = [...flippedCardIds.value, id];
+          }
+
+          return {
+            assesmentData,
+            chars,
+            assessmentCharIndexes,
+            assessmentCompletion,
+            studentAnswers,
+            codeCracked,
+            codeIncorrect,
+            flippedCardIds,
+            assessmentTimers,
+            assessmentAnswers,
+            defusedAssessmentIds,
+            confettiVisible,
+            wrongAnswerPulse,
+            explosionVisible,
+            explodedAssessmentTitle,
+            explodedAssessmentIds,
+            confettiPieces,
+            gameStarted,
+            gameState,
+            startGame,
+            saveGameState,
+            restoreGameState,
+            completeAssessmentInTime,
+            normalizeAnswer,
+            updateAssessmentAnswer,
+            submitAssessmentAnswer,
+            showConfetti,
+            triggerWrongAnswerPulse,
+            triggerExplosion,
+            handleLetterInput,
+            checkCode,
+            registerWrongInput,
+            formatPunishmentTime,
+            formatTimePlayed,
+            formatAssessmentTime,
+            updateGameTimer,
+            isLetterVisible,
+            isCardFlipped,
+            startAssessmentTimer,
+            turnCard,
+          };
+        },
+      }).mount('#app');
+    </script>
+  </body>
+</html>
