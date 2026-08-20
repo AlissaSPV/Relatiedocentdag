@@ -3,9 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Alissa's mooie app</title>
+    <title>🛡️ SPV Challenge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+      /* SPV Web Guidelines palette
+         Primary: #A0C51E / #729300
+         Azure: #2BB6B7 | Forest: #004526
+         Night blue: #161F31 / #1A2842 / #303C54
+         Warm gray: #E2E1D3 / #EDEDE6 / #F2F2EE
+         Signal: #E82F72 | Feedback: blue, green, orange and red palettes
+      */
       @keyframes confetti-fall {
         0% {
           opacity: 0;
@@ -58,6 +69,40 @@
         50% { opacity: 1; }
       }
 
+      @keyframes bomb-flame-flicker {
+        from { transform: scale(.9, 1.08) rotate(-3deg); }
+        to { transform: scale(1.08, .92) rotate(3deg); }
+      }
+
+      @keyframes bomb-spark {
+        0% { opacity: 0; transform: translate(0, 2px) scale(.5); }
+        25% { opacity: 1; }
+        100% { opacity: 0; transform: translate(12px, -20px) scale(1); }
+      }
+
+      @keyframes encryption-bits {
+        0%, 60%, 100% { content: "ENCRYPTION"; }
+        62% { content: "0NCRYPTION"; }
+        64% { content: "01CRYPTION"; }
+        66% { content: "010RYPTION"; }
+        68% { content: "0101YPTION"; }
+        70% { content: "01010PTION"; }
+        72% { content: "010101TION"; }
+        74% { content: "0101010ION"; }
+        76% { content: "01010101ON"; }
+        78% { content: "010101010N"; }
+        80% { content: "0101010101"; }
+        82% { content: "E101010101"; }
+        84% { content: "EN01010101"; }
+        86% { content: "ENC1010101"; }
+        88% { content: "ENCR010101"; }
+        90% { content: "ENCRY10101"; }
+        92% { content: "ENCRYP0101"; }
+        94% { content: "ENCRYPT101"; }
+        96% { content: "ENCRYPTI01"; }
+        98% { content: "ENCRYPTIO1"; }
+      }
+
       .confetti-piece {
         top: -1rem;
         animation: confetti-fall var(--duration) cubic-bezier(.2, .7, .2, 1) var(--delay) both;
@@ -70,6 +115,374 @@
       .shockwave { animation: shockwave 1.25s ease-out both; }
       .shockwave-delayed { animation-delay: .18s; }
       .wrong-answer-pulse { animation: wrong-answer-pulse .45s ease-in-out 3; }
+      .bomb-flame {
+        animation: bomb-flame-flicker .38s ease-in-out infinite alternate;
+        transform-box: fill-box;
+        transform-origin: 50% 100%;
+      }
+      .bomb-spark {
+        animation: bomb-spark .9s ease-out infinite;
+        transform-box: fill-box;
+        transform-origin: center;
+      }
+      .bomb-spark:nth-of-type(2) { animation-delay: .28s; }
+      .bomb-spark:nth-of-type(3) { animation-delay: .56s; }
+
+      .hack-panel {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid #E2E1D3;
+        border-radius: 1.5rem;
+        background: #FFFFFF;
+        color: #161F31;
+        box-shadow: 0 10px 30px rgba(22, 31, 49, .08);
+      }
+
+      .hack-panel::after {
+        display: none;
+      }
+
+      .hack-title {
+        color: #161F31;
+        text-shadow: none;
+      }
+
+      .hack-title-text::before {
+        content: "🔐 TOEGANGSCODE";
+      }
+
+      .hack-input {
+        border: 2px solid #E2E1D3;
+        border-radius: .75rem;
+        background: #F2F2EE;
+        color: #161F31;
+        caret-color: #2BB6B7;
+        font-family: inherit;
+        letter-spacing: 0;
+        text-shadow: none;
+        box-shadow: none;
+      }
+
+      .hack-input::placeholder { color: #5B6477; }
+
+      .hack-input:focus {
+        border-color: #2BB6B7;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(43, 182, 183, .18);
+      }
+
+      .hack-input:disabled {
+        border-color: #E2E1D3;
+        background: #EDEDE6;
+        color: #5B6477;
+        text-shadow: none;
+        box-shadow: none;
+      }
+
+      .hack-input.hack-input-confirmed,
+      .hack-input.hack-input-confirmed:disabled {
+        border-color: #5F9605;
+        background: #F7FDED;
+        color: #3D5F06;
+        font-weight: 900;
+        box-shadow: 0 0 0 3px rgba(95, 150, 5, .10);
+        opacity: 1;
+      }
+
+      .assessment-answer {
+        border: 1px solid #E2E1D3;
+        border-radius: .75rem;
+        background: #FFFFFF;
+        color: #161F31;
+        caret-color: #2BB6B7;
+        box-shadow: none;
+      }
+
+      .assessment-answer::placeholder { color: #5B6477; }
+
+      .assessment-answer:focus {
+        border-color: #2BB6B7;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(43, 182, 183, .16);
+      }
+
+      .assessment-answer:disabled {
+        border-color: #E2E1D3;
+        background: #EDEDE6;
+        color: #5B6477;
+      }
+
+
+      .answer-wire {
+        --swipe-x: 0px;
+        position: relative;
+        isolation: isolate;
+        min-height: 4.25rem;
+        overflow: hidden;
+        border: 0;
+        border-radius: 1rem;
+        background: #FFFFFF;
+        touch-action: pan-y;
+        user-select: none;
+        transform: translateX(var(--swipe-x));
+        transition: transform .16s ease, opacity .16s ease;
+      }
+
+      .answer-wire::before {
+        position: absolute;
+        left: .8rem;
+        right: .8rem;
+        top: 50%;
+        z-index: -1;
+        height: .62rem;
+        border-radius: 999px;
+        background: var(--wire-color);
+        box-shadow:
+          0 2px 0 rgba(22, 31, 49, .14),
+          inset 0 2px 2px rgba(255, 255, 255, .28),
+          inset 0 -2px 2px rgba(22, 31, 49, .18);
+        content: "";
+        transform: translateY(-50%);
+      }
+
+      .answer-wire:not(:disabled):hover .answer-wire-label,
+      .answer-wire:not(:disabled):focus-visible .answer-wire-label {
+        transform: scale(1.015);
+      }
+
+      .answer-wire:disabled {
+        cursor: not-allowed;
+        opacity: .58;
+      }
+
+      .answer-wire-label {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        min-height: 3.3rem;
+        width: calc(100% - 4.5rem);
+        margin: .45rem auto;
+        align-items: center;
+        justify-content: space-between;
+        gap: .75rem;
+        border: 2px solid var(--wire-color);
+        border-radius: .85rem;
+        background: rgba(255, 255, 255, .96);
+        padding: .7rem .9rem;
+        color: #161F31;
+        text-align: left;
+        transition: transform .16s ease;
+      }
+
+      .answer-wire-color-dot {
+        width: .9rem;
+        height: .9rem;
+        flex: 0 0 auto;
+        border: 2px solid rgba(255, 255, 255, .95);
+        border-radius: 999px;
+        background: var(--wire-color);
+        box-shadow: 0 0 0 1px rgba(22, 31, 49, .16);
+      }
+
+      .answer-wire-cut {
+        pointer-events: none;
+        opacity: 0;
+        transform: translateX(var(--cut-direction, 120px)) rotate(1deg);
+      }
+
+      .wire-instruction {
+        border: 1px dashed #2BB6B7;
+        border-radius: .85rem;
+        background: rgba(43, 182, 183, .08);
+      }
+
+      .hack-status {
+        border-radius: .75rem;
+        letter-spacing: 0;
+      }
+
+      .hack-status-success {
+        border: 1px solid #96D334;
+        background: #F7FDED;
+        color: #3D5F06;
+        box-shadow: none;
+      }
+
+      .hack-status-error {
+        border: 1px solid #E91A47;
+        background: #FFF0F1;
+        color: #9F1239;
+        box-shadow: none;
+      }
+
+
+      .bomb-clock-label {
+        font-family: "Share Tech Mono", Consolas, monospace;
+        letter-spacing: .18em;
+        text-shadow: 0 0 8px rgba(233, 26, 71, .28);
+      }
+
+      .bomb-clock-time {
+        font-family: "Share Tech Mono", Consolas, monospace;
+        letter-spacing: .08em;
+        text-shadow: 0 0 10px rgba(251, 113, 133, .3);
+      }
+
+      .spv-map {
+        height: min(62vh, 560px);
+        min-height: 380px;
+        background: #EDEDE6;
+      }
+
+      .spv-map .leaflet-control-zoom a {
+        color: #1A2842;
+      }
+
+      .spv-map .leaflet-control-attribution {
+        color: #5B6477;
+        font-size: 10px;
+      }
+
+      .spv-gps-icon {
+        position: relative;
+        width: 28px;
+        height: 28px;
+      }
+
+      .spv-gps-dot {
+        position: absolute;
+        left: 8px;
+        top: 8px;
+        width: 12px;
+        height: 12px;
+        border: 3px solid #FFFFFF;
+        border-radius: 999px;
+        background: #2BB6B7;
+        box-shadow: 0 1px 5px rgba(22, 31, 49, .35);
+      }
+
+      .spv-gps-pulse {
+        position: absolute;
+        inset: 2px;
+        border: 2px solid rgba(43, 182, 183, .55);
+        border-radius: 999px;
+        animation: gps-pulse 1.8s ease-out infinite;
+      }
+
+      @keyframes gps-pulse {
+        0% { opacity: .9; transform: scale(.45); }
+        75%, 100% { opacity: 0; transform: scale(1.2); }
+      }
+
+      @media (max-width: 640px) {
+        .spv-map {
+          height: 52vh;
+          min-height: 320px;
+        }
+      }
+
+
+
+      /* Grotere iconen en leesbaardere bediening, met extra schaal op mobiel */
+      .ui-emoji {
+        display: inline-block;
+        margin-right: .14em;
+        font-size: 1.22em;
+        line-height: 1;
+        vertical-align: -.08em;
+      }
+
+      @media (max-width: 639px) {
+        .ui-emoji {
+          margin-right: .2em;
+          font-size: 1.42em;
+        }
+
+        button {
+          min-height: 3.25rem;
+        }
+
+        textarea,
+        input,
+        button {
+          font-size: 1rem;
+        }
+
+        .leaflet-control,
+        .leaflet-popup-content {
+          font-size: .95rem;
+        }
+      }
+
+
+      @keyframes score-overlay-in {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+
+      @keyframes score-panel-in {
+        from { opacity: 0; transform: translateY(22px) scale(.96); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+
+      @keyframes score-scan {
+        0% { transform: translateY(-130%); opacity: 0; }
+        15% { opacity: .55; }
+        100% { transform: translateY(520%); opacity: 0; }
+      }
+
+      @keyframes score-pulse {
+        0%, 100% { opacity: .55; transform: scale(.98); }
+        50% { opacity: 1; transform: scale(1); }
+      }
+
+      @keyframes score-number-pop {
+        0% { transform: scale(.92); }
+        70% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+      }
+
+      .score-overlay {
+        animation: score-overlay-in .25s ease-out both;
+      }
+
+      .score-panel {
+        position: relative;
+        overflow: hidden;
+        animation: score-panel-in .45s cubic-bezier(.2, .8, .2, 1) both;
+      }
+
+      .score-scanline {
+        position: absolute;
+        inset: 0 0 auto;
+        height: 22%;
+        pointer-events: none;
+        background: linear-gradient(to bottom, transparent, rgba(43, 182, 183, .14), transparent);
+        animation: score-scan 2.2s linear infinite;
+      }
+
+      .score-calculating {
+        animation: score-pulse 1.1s ease-in-out infinite;
+      }
+
+      .score-final-number {
+        font-family: "Share Tech Mono", Consolas, monospace;
+        animation: score-number-pop .5s ease-out both;
+      }
+
+      .score-step {
+        transition: border-color .25s ease, background-color .25s ease, opacity .25s ease, transform .25s ease;
+      }
+
+      .score-step-pending {
+        opacity: .52;
+        transform: translateY(2px);
+      }
+
+      .score-step-done {
+        opacity: 1;
+        transform: translateY(0);
+      }
 
       @media (prefers-reduced-motion: reduce) {
         .confetti-piece,
@@ -78,7 +491,14 @@
         .explosion-flash,
         .explosion-core,
         .shockwave,
-        .wrong-answer-pulse {
+        .wrong-answer-pulse,
+        .bomb-flame,
+        .bomb-spark,
+        .score-overlay,
+        .score-panel,
+        .score-scanline,
+        .score-calculating,
+        .score-final-number {
           animation-duration: .01ms !important;
           animation-iteration-count: 1 !important;
         }
@@ -86,28 +506,28 @@
     </style>
   </head>
 
-  <body class="min-h-screen bg-slate-50 text-slate-900 antialiased">
+  <body class="min-h-screen bg-[#F2F2EE] text-[#161F31] antialiased">
     <div id="app">
       <section
         v-if="!gameStarted"
         class="flex min-h-screen items-center justify-center px-6 py-12"
       >
-        <div class="w-full max-w-xl rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-xl sm:p-14">
-          <p class="text-sm font-bold uppercase tracking-[0.25em] text-indigo-600">
-            SPV Challenge
+        <div class="w-full max-w-xl rounded-3xl border border-[#E2E1D3] bg-white p-10 text-center shadow-xl sm:p-14">
+          <p class="text-base font-bold uppercase tracking-[0.25em] text-[#004526]">
+            <span class="ui-emoji" aria-hidden="true">🛡️</span> SPV Challenge
           </p>
-          <h1 class="mt-4 text-4xl font-black tracking-tight text-slate-900 sm:text-5xl">
-            Kraak de veiligheidscode
+          <h1 class="mt-4 text-4xl font-black tracking-tight text-[#161F31] sm:text-5xl">
+            <span class="ui-emoji" aria-hidden="true">🔐</span> Kraak de toegangscode
           </h1>
-          <p class="mx-auto mt-5 max-w-md leading-7 text-slate-600">
-            Voltooi de assessments, verzamel de letters en ontdek het verborgen woord.
+          <p class="mx-auto mt-5 max-w-md leading-7 text-[#5B6477]">
+            <span class="ui-emoji" aria-hidden="true">🎯</span> Voltooi de assessments, verzamel de letters en ontdek het verborgen woord.
           </p>
           <button
             type="button"
-            class="mt-8 w-full rounded-xl bg-indigo-600 px-6 py-4 text-lg font-bold text-white shadow-sm transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+            class="mt-8 w-full rounded-xl bg-[#A0C51E] px-6 py-4 text-xl font-bold text-[#161F31] shadow-sm transition hover:bg-[#729300] focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
             @click="startGame"
           >
-            Spelen
+            <span class="ui-emoji" aria-hidden="true">▶️</span> Spelen
           </button>
         </div>
       </section>
@@ -115,17 +535,17 @@
       <template v-else>
       <div
         v-if="explosionVisible"
-        class="explosion-overlay pointer-events-none fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-red-950/80"
+        class="explosion-overlay pointer-events-none fixed inset-0 z-[110] flex items-center justify-center overflow-hidden bg-[#4C0519]/80"
         role="alert"
         aria-live="assertive"
       >
-        <div class="explosion-flash absolute inset-0 bg-yellow-200"></div>
-        <div class="shockwave absolute h-52 w-52 rounded-full border-[18px] border-orange-400"></div>
-        <div class="shockwave shockwave-delayed absolute h-52 w-52 rounded-full border-[10px] border-yellow-200"></div>
+        <div class="explosion-flash absolute inset-0 bg-[#FED7AA]"></div>
+        <div class="shockwave absolute h-52 w-52 rounded-full border-[18px] border-[#FB923C]"></div>
+        <div class="shockwave shockwave-delayed absolute h-52 w-52 rounded-full border-[10px] border-[#FED7AA]"></div>
         <div class="explosion-core relative text-center text-white">
           <p class="text-9xl drop-shadow-[0_0_35px_rgba(251,146,60,1)]" aria-hidden="true">💥</p>
           <p class="mt-5 text-4xl font-black uppercase tracking-tight">De bom is ontploft!</p>
-          <p v-if="explodedAssessmentTitle" class="mt-2 text-lg font-semibold text-red-100">
+          <p v-if="explodedAssessmentTitle" class="mt-2 text-xl font-semibold text-[#FECDD3]">
             {{ explodedAssessmentTitle }}
           </p>
         </div>
@@ -133,13 +553,13 @@
 
       <div
         v-if="wrongAnswerPulse"
-        class="wrong-answer-pulse pointer-events-none fixed inset-0 z-[90] border-[12px] border-red-600 bg-red-600/30"
+        class="wrong-answer-pulse pointer-events-none fixed inset-0 z-[90] border-[12px] border-[#E91A47] bg-[#E91A47]/30"
         aria-hidden="true"
       ></div>
 
       <div
         v-if="confettiVisible"
-        class="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-slate-950/30"
+        class="pointer-events-none fixed inset-0 z-[100] overflow-hidden bg-[#161F31]/30"
         role="status"
         aria-live="assertive"
       >
@@ -158,16 +578,86 @@
         ></span>
         <div class="celebration-message absolute left-1/2 top-1/2 rounded-3xl bg-white px-10 py-8 text-center shadow-2xl">
           <p class="text-6xl" aria-hidden="true">🎉</p>
-          <p class="mt-3 text-3xl font-black uppercase tracking-tight text-emerald-600">
+          <p class="mt-3 text-3xl font-black uppercase tracking-tight text-[#5F9605]">
             Bom ontmanteld
           </p>
         </div>
       </div>
 
+      <div
+        v-if="scoreScreenVisible"
+        class="score-overlay fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-[#161F31]/90 px-4 py-8"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="score-title"
+      >
+        <section class="score-panel w-full max-w-xl rounded-3xl border border-[#2BB6B7]/50 bg-white p-5 shadow-2xl sm:p-8">
+          <div class="score-scanline" aria-hidden="true"></div>
+
+          <div class="relative">
+            <p class="text-center text-sm font-black uppercase tracking-[0.22em] text-[#5F9605]">
+              <span class="ui-emoji" aria-hidden="true">🔓</span> Toegang verleend
+            </p>
+            <h2 id="score-title" class="mt-2 text-center text-2xl font-black tracking-tight text-[#161F31] sm:text-3xl">
+              {{ scoreAnimationDone ? 'Score berekend' : 'Score wordt berekend...' }}
+            </h2>
+            <div class="mt-6 space-y-2.5" aria-live="polite">
+              <div
+                class="score-step flex items-center justify-between rounded-xl border px-4 py-3"
+                :class="scoreStage >= 1 ? 'score-step-done border-[#96D334] bg-[#F7FDED]' : 'score-step-pending border-[#E2E1D3] bg-[#F2F2EE]'"
+              >
+                <span class="font-semibold"><span class="ui-emoji" aria-hidden="true">✅</span> Opgeloste opdrachten</span>
+                <span class="font-mono font-black">{{ scoreStage >= 1 ? scoreBreakdown.solved + ' × 500 · +' + scoreBreakdown.baseXp.toLocaleString('nl-NL') + ' XP' : '...' }}</span>
+              </div>
+
+              <div
+                class="score-step flex items-center justify-between rounded-xl border px-4 py-3"
+                :class="scoreStage >= 2 ? 'score-step-done border-[#FB923C] bg-[#FFF4E5]' : 'score-step-pending border-[#E2E1D3] bg-[#F2F2EE]'"
+              >
+                <span class="font-semibold"><span class="ui-emoji" aria-hidden="true">⏱️</span> Tijdstraf</span>
+                <span class="font-mono font-black">{{ scoreStage >= 2 ? scoreBreakdown.halfHourBlocks + ' × 30 min · -' + scoreBreakdown.timePenalty.toLocaleString('nl-NL') + ' XP' : '...' }}</span>
+              </div>
+
+              <div
+                class="score-step flex items-center justify-between rounded-xl border px-4 py-3"
+                :class="scoreStage >= 3 ? 'score-step-done border-[#E91A47] bg-[#FFF0F1]' : 'score-step-pending border-[#E2E1D3] bg-[#F2F2EE]'"
+              >
+                <span class="font-semibold"><span class="ui-emoji" aria-hidden="true">⚠️</span> Foute toegangscodes</span>
+                <span class="font-mono font-black">{{ scoreStage >= 3 ? scoreBreakdown.wrongAttempts + ' × 100 · -' + scoreBreakdown.wrongPenalty.toLocaleString('nl-NL') + ' XP' : '...' }}</span>
+              </div>
+
+            </div>
+
+            <div class="mt-6 rounded-2xl bg-[#161F31] px-5 py-5 text-center text-white">
+              <p class="text-sm font-bold uppercase tracking-[0.18em] text-[#2BB6B7]">Eind-XP</p>
+              <p class="score-final-number mt-1 text-5xl font-black tabular-nums text-[#A0C51E] sm:text-6xl">
+                {{ animatedScore.toLocaleString('nl-NL') }} XP
+              </p>
+            </div>
+
+            <p v-if="!scoreAnimationDone" class="score-calculating mt-4 text-center text-sm font-semibold text-[#5B6477]">
+              Resultaten worden verwerkt...
+            </p>
+
+            <button
+              v-else
+              type="button"
+              class="mt-5 w-full rounded-xl bg-[#A0C51E] px-5 py-3 text-lg font-bold text-[#161F31] transition hover:bg-[#729300] focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
+              @click="closeScoreScreen"
+            >
+              <span class="ui-emoji" aria-hidden="true">🏁</span> Verder
+            </button>
+          </div>
+        </section>
+      </div>
+
       <main class="mx-auto grid min-h-screen w-full max-w-7xl content-start gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
-        <section aria-label="Challengewoord" class="rounded-2xl border border-slate-200 bg-white px-3 py-5 shadow-sm sm:px-6 sm:py-7">
-          <p class="mb-4 text-center text-xs font-bold uppercase tracking-[0.22em] text-indigo-600">
-            Veiligheidscode
+        <section aria-label="TOEGANGSCODE" class="hack-panel px-4 py-6 sm:px-7 sm:py-8">
+          <p
+            class="hack-title mb-5 text-center text-xl font-bold tracking-tight sm:text-2xl"
+            aria-label="TOEGANGSCODE"
+          >
+            <span class="hack-title-text inline-block" aria-hidden="true"></span>
           </p>
           <div class="mx-auto grid w-full max-w-2xl grid-cols-10 gap-1 sm:gap-3">
             <label
@@ -182,71 +672,160 @@
                 maxlength="1"
                 autocomplete="off"
                 :disabled="gameState.hasPunishment"
-                class="h-10 w-full min-w-0 border-0 border-b-2 bg-transparent p-0 text-center text-lg font-bold uppercase outline-none transition focus:ring-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:opacity-60 sm:h-12 sm:text-xl"
-                :class="isLetterVisible(index) && !gameState.hasPunishment ? 'border-emerald-500 text-emerald-700' : 'border-slate-400 text-slate-900 focus:border-indigo-600'"
+                :readonly="isLetterVisible(index)"
+                class="hack-input h-11 w-full min-w-0 p-0 text-center text-xl font-bold uppercase transition disabled:cursor-not-allowed disabled:opacity-60 sm:h-12 sm:text-xl"
+                :class="{ 'hack-input-confirmed': isLetterVisible(index) }"
                 @input="handleLetterInput(index, $event)"
               />
-              <span class="text-xs text-slate-400">{{ index + 1 }}</span>
+              <span class="text-sm font-semibold text-[#5B6477]">
+                {{ index + 1 }}
+              </span>
             </label>
           </div>
 
           <p
             v-if="codeCracked"
-            class="mx-auto mt-6 w-fit rounded-full bg-emerald-100 px-5 py-2 text-sm font-semibold text-emerald-800"
+            class="hack-status hack-status-success mx-auto mt-6 w-fit px-5 py-2 text-base font-semibold"
             role="status"
           >
-            Code gekraakt! Het woord is VEILIGHEID.
+            <span class="ui-emoji" aria-hidden="true">✅</span> Code gekraakt! Het woord is VEILIGHEID.
           </p>
+          <div
+            v-else-if="gameState.hasPunishment"
+            class="hack-status hack-status-error mx-auto mt-6 w-fit min-w-48 px-6 py-3 text-center"
+            role="timer"
+            aria-live="polite"
+          >
+            <span class="block text-sm font-bold uppercase tracking-[0.16em]"><span class="ui-emoji" aria-hidden="true">⛔</span> Code incorrect · Straftijd</span>
+            <span class="mt-1 block font-mono text-xl font-black tabular-nums">
+              {{ formatPunishmentTime(gameState.punishmentTime) }}
+            </span>
+          </div>
           <p
             v-else-if="codeIncorrect"
-            class="mx-auto mt-6 w-fit rounded-full bg-red-100 px-5 py-2 text-sm font-semibold text-red-800"
+            class="hack-status hack-status-error mx-auto mt-6 w-fit px-5 py-2 text-base font-semibold"
             role="alert"
           >
-            De code is incorrect. Probeer het opnieuw.
+            <span class="ui-emoji" aria-hidden="true">❌</span> De code is incorrect. Probeer het opnieuw.
           </p>
         </section>
 
         <section aria-label="Gamestats" class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
-          <div class="rounded-2xl bg-slate-900 px-4 py-4 text-center text-white shadow-sm" role="timer">
-            <p class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">Speeltijd</p>
+          <div class="rounded-2xl border border-[#2BB6B7] bg-[#2BB6B7]/20 px-4 py-4 text-center text-[#1A2842] shadow-sm" role="timer">
+            <p class="text-sm font-bold uppercase tracking-widest text-[#1A2842]"><span class="ui-emoji" aria-hidden="true">⏱️</span> Speeltijd</p>
             <p class="mt-1 font-mono text-xl font-black tabular-nums sm:text-2xl">
               {{ formatTimePlayed(gameState.timePlayed) }}
             </p>
           </div>
 
-          <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm">
-            <p class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500">Foute pogingen</p>
-            <p class="mt-1 font-mono text-xl font-black tabular-nums text-slate-900 sm:text-2xl">
+          <div class="rounded-2xl border border-[#2BB6B7] bg-[#2BB6B7]/20 px-4 py-4 text-center text-[#1A2842] shadow-sm">
+            <p class="text-sm font-bold uppercase tracking-widest text-[#1A2842]"><span class="ui-emoji" aria-hidden="true">⚠️</span> Foute pogingen</p>
+            <p class="mt-1 font-mono text-xl font-black tabular-nums sm:text-2xl">
               {{ gameState.totalWrongInputs }}
             </p>
           </div>
 
-          <div
-            class="col-span-2 rounded-2xl border px-4 py-4 text-center shadow-sm sm:col-span-1"
-            :class="gameState.hasPunishment ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'"
-            role="timer"
-            aria-live="polite"
-          >
-            <p
-              class="text-[0.65rem] font-bold uppercase tracking-widest"
-              :class="gameState.hasPunishment ? 'text-red-600' : 'text-emerald-700'"
-            >
-              Straftijd
-            </p>
-            <p
-              class="mt-1 font-mono text-xl font-black tabular-nums sm:text-2xl"
-              :class="gameState.hasPunishment ? 'text-red-800' : 'text-emerald-800'"
-            >
-              {{ formatPunishmentTime(gameState.punishmentTime) }}
+          <div class="col-span-2 rounded-2xl border border-[#A0C51E] bg-[#A0C51E]/15 px-4 py-4 text-center text-[#1A2842] shadow-sm sm:col-span-1" aria-live="polite">
+            <p class="text-sm font-bold uppercase tracking-widest text-[#1A2842]"><span class="ui-emoji" aria-hidden="true">⭐</span> XP</p>
+            <p class="mt-1 font-mono text-xl font-black tabular-nums text-[#3D5F06] sm:text-2xl">
+              {{ currentXp.toLocaleString('nl-NL') }}
             </p>
           </div>
         </section>
 
-        <section aria-label="Opdrachten" class="grid min-w-0 gap-5 pb-6 sm:grid-cols-2 lg:grid-cols-3">
+        <section aria-label="Navigatie" class="rounded-2xl border border-[#E2E1D3] bg-white p-2 shadow-sm">
+          <div class="grid grid-cols-2 gap-2" role="tablist" aria-label="Spelweergave">
+            <button
+              id="tab-kaart"
+              type="button"
+              role="tab"
+              aria-controls="panel-kaart"
+              :aria-selected="activeTab === 'kaart'"
+              class="rounded-xl px-4 py-3 text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
+              :class="activeTab === 'kaart'
+                ? 'bg-[#1A2842] text-white shadow-sm'
+                : 'text-[#1A2842] hover:bg-[#2BB6B7]/10'"
+              @click="activeTab = 'kaart'"
+            >
+              <span class="ui-emoji" aria-hidden="true">🗺️</span> Kaart
+            </button>
+            <button
+              id="tab-opdrachten"
+              type="button"
+              role="tab"
+              aria-controls="panel-opdrachten"
+              :aria-selected="activeTab === 'opdrachten'"
+              class="rounded-xl px-4 py-3 text-base font-bold transition focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
+              :class="activeTab === 'opdrachten'
+                ? 'bg-[#1A2842] text-white shadow-sm'
+                : 'text-[#1A2842] hover:bg-[#2BB6B7]/10'"
+              @click="activeTab = 'opdrachten'"
+            >
+              <span class="ui-emoji" aria-hidden="true">📋</span> Opdrachten
+            </button>
+          </div>
+        </section>
+
+        <section
+          v-show="activeTab === 'kaart'"
+          id="panel-kaart"
+          role="tabpanel"
+          aria-labelledby="tab-kaart"
+          class="pb-6"
+        >
+          <div class="overflow-hidden rounded-2xl border border-[#E2E1D3] bg-white shadow-sm">
+            <div class="flex flex-col gap-3 border-b border-[#E2E1D3] p-3 sm:flex-row sm:items-center sm:justify-between">
+              <div class="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  class="rounded-xl bg-[#1A2842] px-4 py-2.5 text-base font-bold text-white transition hover:bg-[#303C54] focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
+                  @click="toggleGpsTracking"
+                >
+                  <span class="ui-emoji" aria-hidden="true">{{ gpsTracking ? '⏹️' : '📍' }}</span> {{ gpsTracking ? 'GPS volgen stoppen' : 'Volg mijn GPS' }}
+                </button>
+              </div>
+
+              <p class="text-base font-semibold" :class="gpsTracking ? 'text-[#3D5F06]' : 'text-[#5B6477]'">
+                <span class="ui-emoji" aria-hidden="true">📡</span> {{ gpsStatus }}
+              </p>
+            </div>
+
+            <p
+              v-if="mapMessage"
+              class="border-b border-[#E2E1D3] bg-[#F2F2EE] px-4 py-2 text-base text-[#5B6477]"
+              role="status"
+              aria-live="polite"
+            >
+              <span class="ui-emoji" aria-hidden="true">ℹ️</span> {{ mapMessage }}
+            </p>
+
+            <div
+              id="spv-map"
+              class="spv-map w-full"
+              role="region"
+              aria-label="OpenStreetMap van de Elspeterweg in Vaassen"
+            ></div>
+
+            <div class="flex flex-col gap-1 border-t border-[#E2E1D3] px-4 py-3 text-sm text-[#5B6477] sm:flex-row sm:items-center sm:justify-between">
+              <span><span class="ui-emoji" aria-hidden="true">📌</span> Startweergave: Elspeterweg, Vaassen</span>
+              <span v-if="gpxName"><span class="ui-emoji" aria-hidden="true">🧭</span> GPX: {{ gpxName }} · {{ gpxPointCount }} punten</span>
+            </div>
+          </div>
+        </section>
+
+        <section
+          v-show="activeTab === 'opdrachten'"
+          id="panel-opdrachten"
+          role="tabpanel"
+          aria-labelledby="tab-opdrachten"
+          aria-label="Opdrachten"
+          class="grid w-full min-w-0 grid-cols-1 items-start gap-6 pb-6 sm:grid-cols-2"
+        >
           <article
             v-for="assessment in assesmentData"
             :key="assessment.id"
-            class="h-[32rem] min-w-0 [perspective:1200px]"
+            class="h-[32rem] w-full min-w-0 [perspective:1200px]"
+            :data-assessment-id="assessment.id"
           >
             <div
               class="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]"
@@ -255,99 +834,200 @@
               <div
                 class="absolute inset-0 flex flex-col rounded-2xl border p-6 shadow-sm [backface-visibility:hidden]"
                 :class="assessment.state.isDismanteld
-                  ? 'border-emerald-500 bg-emerald-50'
+                  ? 'border-[#5F9605] bg-[#F7FDED]'
                   : assessment.state.timeLeft
-                    ? 'border-slate-200 bg-white'
-                    : 'border-red-500 bg-red-50'"
+                    ? 'border-[#E2E1D3] bg-white'
+                    : 'border-[#E91A47] bg-[#FFF0F1]'"
               >
-                <p class="text-sm font-semibold uppercase tracking-wider text-indigo-600">
-                  {{ assessment.theme }}
+                <p class="text-base font-semibold uppercase tracking-wider text-[#004526]">
+                  <span class="ui-emoji" aria-hidden="true">🎯</span> {{ assessment.theme }}
                 </p>
-                <h2 class="mt-3 text-xl font-bold tracking-tight text-slate-900">
+                <h2 class="mt-3 text-xl font-bold tracking-tight text-[#161F31]">
                   {{ assessment.title }}
                 </h2>
                 <p
                   v-if="assessmentCharIndexes[assessment.id] !== undefined"
-                  class="mt-3 text-sm text-slate-500"
+                  class="mt-3 text-base text-[#5B6477]"
                 >
-                  Gekoppeld aan letterpositie {{ assessmentCharIndexes[assessment.id] + 1 }}
+                  <span class="ui-emoji" aria-hidden="true">🔤</span> Gekoppeld aan letterpositie {{ assessmentCharIndexes[assessment.id] + 1 }}
                 </p>
 
                 <button
                   type="button"
-                  class="mt-auto rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                  class="mt-auto rounded-lg bg-[#A0C51E] px-4 py-2 text-base font-semibold text-[#161F31] transition hover:bg-[#729300] focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
                   @click="turnCard(assessment)"
                 >
-                  Bekijk opdracht
+                  <span class="ui-emoji" aria-hidden="true">👀</span> Bekijk opdracht
                 </button>
               </div>
 
               <div
                 class="absolute inset-0 overflow-y-auto rounded-2xl border p-6 shadow-sm [backface-visibility:hidden] [transform:rotateY(180deg)]"
                 :class="assessment.state.isDismanteld
-                  ? 'border-emerald-500 bg-emerald-50'
+                  ? 'border-[#5F9605] bg-[#F7FDED]'
                   : assessment.state.timeLeft
-                    ? 'border-indigo-200 bg-indigo-50'
-                    : 'border-red-500 bg-red-50'"
+                    ? 'border-[#2BB6B7] bg-[#2BB6B7]/20'
+                    : 'border-[#E91A47] bg-[#FFF0F1]'"
               >
-                <div class="mb-5 flex items-center justify-between rounded-xl bg-slate-900 px-4 py-3 text-white shadow-md">
-                  <span class="text-xs font-bold uppercase tracking-widest text-red-400">Bomklok</span>
-                  <span class="font-mono text-2xl font-black tabular-nums">
+                <svg
+                  v-if="assessment.state.timeLeft || assessment.state.isDismanteld"
+                  viewBox="0 0 800 700"
+                  class="mx-auto -mt-2 h-44 w-full max-w-[13rem] shrink-0"
+                  role="img"
+                  :aria-label="assessment.state.isDismanteld
+                    ? 'Ontmantelde bom met gedoofde lont'
+                    : 'Bom met brandende lont'"
+                >
+                  <ellipse cx="390" cy="642" rx="210" ry="20" fill="#161F31" opacity=".12" />
+
+                  <circle cx="390" cy="445" r="205" fill="#161F31" />
+                  <path
+                    d="M245 390 C267 326 314 285 368 271 C321 302 286 348 270 407 Z"
+                    fill="#303C54"
+                    opacity=".9"
+                  />
+
+                  <rect x="343" y="214" width="130" height="78" rx="20" fill="#5B6477" />
+                  <rect x="355" y="226" width="106" height="12" rx="6" fill="#E2E1D3" />
+                  <ellipse cx="408" cy="230" rx="29" ry="11" fill="#161F31" />
+
+                  <path
+                    d="M408 230 C420 118 505 68 590 88 C680 109 720 190 675 285"
+                    pathLength="100"
+                    fill="none"
+                    stroke="#5B6477"
+                    stroke-width="25"
+                    stroke-linecap="round"
+                    :stroke-dasharray="fuseDashArray(assessment)"
+                  />
+                  <path
+                    d="M408 230 C420 118 505 68 590 88 C680 109 720 190 675 285"
+                    pathLength="100"
+                    fill="none"
+                    stroke="#E2E1D3"
+                    stroke-width="17"
+                    stroke-linecap="round"
+                    :stroke-dasharray="fuseDashArray(assessment)"
+                  />
+                  <path
+                    d="M408 230 C420 118 505 68 590 88 C680 109 720 190 675 285"
+                    pathLength="100"
+                    fill="none"
+                    stroke="#F2F2EE"
+                    stroke-width="4"
+                    stroke-linecap="round"
+                    :stroke-dasharray="fuseDashArray(assessment)"
+                  />
+
+                  <g
+                    v-if="!assessment.state.isDismanteld"
+                    :transform="fuseTipTransform(assessment)"
+                  >
+                    <circle r="9" fill="#161F31" />
+                    <g class="bomb-flame">
+                      <path
+                        d="M0 14 C-22 4 -24 -17 -10 -37 C-8 -22 -1 -19 2 -35 C16 -22 25 -8 21 9 C18 22 9 31 0 34 C-9 30 -15 24 0 14Z"
+                        fill="#EA580C"
+                      />
+                      <path
+                        d="M0 18 C-12 10 -11 -3 -3 -16 C-1 -7 5 -5 7 -16 C15 -6 15 9 8 18 C5 23 2 26 0 28 C-4 26 -7 22 0 18Z"
+                        fill="#FB923C"
+                      />
+                      <path
+                        d="M0 21 C-6 15 -4 7 1 1 C6 8 8 15 5 21 C3 24 1 25 0 26 C-2 25 -3 24 0 21Z"
+                        fill="#FED7AA"
+                      />
+                    </g>
+                    <circle class="bomb-spark" cx="10" cy="-22" r="3" fill="#FB923C" />
+                    <circle class="bomb-spark" cx="-8" cy="-28" r="2.5" fill="#EA580C" />
+                    <circle class="bomb-spark" cx="2" cy="-34" r="2" fill="#FED7AA" />
+                  </g>
+                </svg>
+
+                <div class="mb-5 flex items-center justify-between rounded-xl bg-[#161F31] px-4 py-3 text-white shadow-md">
+                  <span class="bomb-clock-label text-sm font-bold uppercase tracking-widest text-[#FB7185]">Bomklok</span>
+                  <span class="bomb-clock-time text-2xl font-black tabular-nums">
                     {{ formatAssessmentTime(assessmentTimers[assessment.id] ?? assessment.timing.durationMinutes * 60) }}
                   </span>
                 </div>
 
-                <p class="text-sm font-semibold uppercase tracking-wider text-indigo-600">Situatie</p>
-                <h3 class="mt-2 font-bold text-slate-900">{{ assessment.situation.location }}</h3>
-                <p class="mt-2 text-sm leading-6 text-slate-600">{{ assessment.situation.description }}</p>
-                <p class="mt-3 rounded-lg bg-white p-3 text-sm italic text-slate-700">
+                <p class="text-base font-semibold uppercase tracking-wider text-[#004526]"><span class="ui-emoji" aria-hidden="true">📍</span> Situatie</p>
+                <h3 class="mt-2 font-bold text-[#161F31]">{{ assessment.situation.location }}</h3>
+                <p class="mt-2 text-base leading-6 text-[#5B6477]">{{ assessment.situation.description }}</p>
+                <p
+                  v-if="assessment.situation.centralistMessage"
+                  class="mt-3 rounded-lg bg-white p-3 text-base italic text-[#303C54]"
+                >
                   “{{ assessment.situation.centralistMessage }}”
                 </p>
 
-                <p class="mt-6 text-sm font-semibold uppercase tracking-wider text-indigo-600">Opdracht</p>
-                <h3 class="mt-2 font-bold text-slate-900">{{ assessment.assignment.title }}</h3>
-                <p class="mt-2 text-sm leading-6 text-slate-600">{{ assessment.assignment.description }}</p>
+                <p class="mt-6 text-base font-semibold uppercase tracking-wider text-[#004526]"><span class="ui-emoji" aria-hidden="true">🎯</span> Opdracht</p>
+                <h3 class="mt-2 font-bold text-[#161F31]">{{ assessment.assignment.title }}</h3>
+                <p class="mt-2 text-base leading-6 text-[#5B6477]">{{ assessment.assignment.description }}</p>
 
-                <ul class="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-600">
+                <ul class="mt-3 list-disc space-y-1 pl-5 text-base text-[#5B6477]">
                   <li v-for="objective in assessment.assignment.objectives" :key="objective">
                     {{ objective }}
                   </li>
                 </ul>
 
-                <label class="mt-6 block">
-                  <span class="text-sm font-semibold text-slate-900">Jouw antwoord</span>
-                  <textarea
-                    :value="assessmentAnswers[assessment.id] ?? ''"
-                    rows="3"
-                    :disabled="assessment.state.isDismanteld || !assessment.state.timeLeft"
-                    class="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
-                    placeholder="Vul hier je antwoord in"
-                    @input="updateAssessmentAnswer(assessment.id, $event)"
-                  ></textarea>
-                </label>
+                <div v-if="assessment.assignment.question" class="mt-5 rounded-xl border border-[#2BB6B7] bg-white px-4 py-3">
+                  <p class="text-sm font-bold uppercase tracking-wider text-[#004526]">Vraag</p>
+                  <p class="mt-1 text-base font-bold leading-6 text-[#161F31]">{{ assessment.assignment.question }}</p>
+                </div>
 
-                <button
-                  type="button"
-                  :disabled="assessment.state.isDismanteld || !assessment.state.timeLeft"
-                  class="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                  @click="submitAssessmentAnswer(assessment)"
-                >
-                  Ontmantel
-                </button>
+                <div class="mt-6">
+                  <div class="wire-instruction px-4 py-3">
+                    <p class="text-base font-bold text-[#161F31]"><span class="ui-emoji" aria-hidden="true">✂️</span> Knip de juiste draad door</p>
+                    <p class="mt-1 text-sm text-[#5B6477]">Swipe de draad met het juiste antwoord naar links of rechts. Een verkeerde draad laat de bom direct ontploffen.</p>
+                  </div>
 
-                <p
+                  <div class="mt-3 grid gap-3" role="group" :aria-label="'Antwoordopties voor ' + assessment.title">
+                    <button
+                      v-for="option in assessment.assessmentOptions"
+                      :key="option.id"
+                      type="button"
+                      class="answer-wire"
+                      :class="{ 'answer-wire-cut': cutWireKey === assessment.id + ':' + option.id }"
+                      :style="{
+                        '--wire-color': option.color,
+                        '--cut-direction': cutWireDirection + 'px',
+                      }"
+                      :disabled="assessment.state.isDismanteld || !assessment.state.timeLeft || assessmentWireLocked[assessment.id]"
+                      @pointerdown="startWireSwipe(assessment.id, option.id, $event)"
+                      @pointermove="moveWireSwipe(assessment.id, option.id, $event)"
+                      @pointerup="finishWireSwipe(assessment, option, $event)"
+                      @pointercancel="cancelWireSwipe(assessment.id, option.id, $event)"
+                      @keydown.enter.prevent="cutAssessmentWire(assessment, option)"
+                      @keydown.space.prevent="cutAssessmentWire(assessment, option)"
+                    >
+                      <span class="answer-wire-label">
+                        <span class="flex min-w-0 items-center gap-3">
+                          <span class="answer-wire-color-dot" aria-hidden="true"></span>
+                          <span class="font-bold leading-snug">{{ option.label }}</span>
+                        </span>
+                        <span class="shrink-0 text-sm font-semibold text-[#5B6477]" aria-hidden="true">SWIPE</span>
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div
                   v-if="assessment.state.isDismanteld"
-                  class="mt-3 rounded-lg bg-emerald-100 px-3 py-2 text-sm font-bold text-emerald-700"
+                  class="mt-3 rounded-lg bg-[#D6F3A7] px-3 py-3 text-[#3D5F06]"
                 >
-                  Bom ontmanteld!
-                </p>
+                  <p class="text-base font-bold"><span class="ui-emoji" aria-hidden="true">✅</span> Bom ontmanteld!</p>
+                  <p v-if="assessment.result?.successMessage" class="mt-1 text-sm font-semibold leading-5">
+                    {{ assessment.result.successMessage }}
+                  </p>
+                </div>
 
                 <button
                   type="button"
-                  class="mt-6 w-full rounded-lg border border-indigo-600 px-4 py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:ring-offset-2"
+                  class="mt-6 w-full rounded-lg border border-[#1A2842] px-4 py-2 text-base font-semibold text-[#1A2842] transition hover:bg-[#EDEDE6] focus:outline-none focus:ring-2 focus:ring-[#2BB6B7] focus:ring-offset-2"
                   @click="turnCard(assessment)"
                 >
-                  Terug
+                  <span class="ui-emoji" aria-hidden="true">⬅️</span> Terug
                 </button>
               </div>
             </div>
@@ -357,23 +1037,30 @@
       </template>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script>
-      const { createApp, onMounted, onUnmounted, ref, watch } = Vue;
+      const { computed, createApp, onMounted, onUnmounted, ref, watch } = Vue;
 
       const assesmentData = ref([
         {
           id: 1,
-          answer: 'test',
+          rightAnswer: 'werkhandschoen',
+          assessmentOptions: [
+            { id: 'a', value: 'mobiele telefoon', label: 'Een mobiele telefoon', color: '#E91A47' },
+            { id: 'b', value: 'werkhandschoen', label: 'Een werkhandschoen', color: '#0284C7' },
+            { id: 'c', value: 'portemonnee', label: 'Een portemonnee', color: '#EA580C' },
+            { id: 'd', value: 'sleutelbos', label: 'Een sleutelbos', color: '#5F9605' },
+          ],
           state: {
             isDismanteld: false,
             timeLeft: true,
           },
-          title: 'Het sporenonderzoek',
-          theme: 'Kijken als een professional',
+          title: 'Onderzoek de dumplocatie',
+          theme: 'Vind het spoor',
           card: {
             label: 'Post 1',
-            summary: 'Onderzoek een illegale afvaldumping, beoordeel de sporen en wijs de meest waarschijnlijke verdachte aan.',
+            summary: 'Onderzoek de illegale afvaldumping en ontdek welk achtergelaten voorwerp belangrijk kan zijn voor het vervolgonderzoek.',
             icon: 'search',
             accentColor: 'indigo',
           },
@@ -385,61 +1072,224 @@
           },
           situation: {
             location: 'Bos en dumplocatie',
-            description: 'Tijdens een surveillance door het bos ontvangt de groep een melding van een mogelijke illegale afvaldumping. De daders zijn verdwenen, maar hebben verschillende sporen achtergelaten.',
-            centralistMessage: 'Jullie hebben maximaal 10 minuten om de locatie te onderzoeken. Daarna vervallen de sporen en moet de melding worden afgesloten.',
+            description: 'In het bos is illegaal afval gedumpt. De verdachte is niet meer aanwezig, maar heeft mogelijk een spoor achtergelaten.',
+            centralistMessage: 'Jullie hebben maximaal 10 minuten om de dumplocatie zorgvuldig te onderzoeken en het juiste spoor te vinden.',
           },
           assignment: {
-            title: 'Onderzoek de plaats van het incident',
-            description: 'Zoek naar aanwijzingen, leg verbanden tussen de gevonden sporen en bepaal wie de meest waarschijnlijke verdachte is.',
+            title: 'Vind het spoor',
+            description: 'Onderzoek de dumplocatie zorgvuldig. Zoek naar een voorwerp dat mogelijk van de verdachte afkomstig is en interessant kan zijn voor verder onderzoek.',
             objectives: [
-              'De locatie zorgvuldig observeren',
-              'Relevante en irrelevante aanwijzingen onderscheiden',
-              'Verbanden tussen sporen leggen',
-              'Een onderbouwde verdachte aanwijzen',
+              'De dumplocatie zorgvuldig onderzoeken',
+              'Het achtergelaten spoor vinden',
+              'Bepalen welk voorwerp kan worden veiliggesteld',
+              'Het juiste antwoord in de app selecteren',
+            ],
+            question: 'Welk voorwerp hebben jullie aangetroffen dat als spoor kan worden veiliggesteld?',
+            options: [
+              'Een mobiele telefoon',
+              'Een werkhandschoen',
+              'Een portemonnee',
+              'Een sleutelbos',
             ],
           },
+          result: {
+            successMessage: 'Spoor veiliggesteld! De werkhandschoen wordt onderzocht. Hierop wordt bruikbaar DNA aangetroffen. Dit spoor wordt meegenomen in het vervolgonderzoek.',
+            earnedLetter: 'V',
+          },
         },
+
         {
           id: 2,
-          answer: 'test',
+          rightAnswer: 'vos bouw',
+          assessmentOptions: [
+            { id: 'a', value: 'noord bouw', label: 'Noord Bouw', color: '#E91A47' },
+            { id: 'b', value: 'de groot renovatie', label: 'De Groot Renovatie', color: '#0284C7' },
+            { id: 'c', value: 'vos bouw', label: 'Vos Bouw', color: '#EA580C' },
+            { id: 'd', value: 'janssen afbouw', label: 'Janssen Afbouw', color: '#5F9605' },
+          ],
           state: {
             isDismanteld: false,
             timeLeft: true,
           },
-          title: 'Communicatie en omgaan met emotie en weerstand',
-          theme: 'Communiceren onder druk',
+          title: 'Achterhaal de herkomst',
+          theme: 'Reconstructeer de informatie',
           card: {
             label: 'Post 2',
-            summary: 'Ondersteun een BOA, de-escaleer een gespannen gesprek en handel de bekeuringssituatie professioneel af.',
-            icon: 'message-circle',
+            summary: 'Zoek de onderdelen van een verscheurde afleverbon, herstel de informatie en achterhaal waar het gedumpte materiaal vandaan komt.',
+            icon: 'file-search',
             accentColor: 'amber',
           },
           timing: {
             durationMinutes: 10,
-            warningAfterMinutes: null,
+            warningAfterMinutes: 7,
             startsWhen: 'De centralist de opdracht start',
             isVisibleInApp: true,
           },
           situation: {
-            location: 'Afgesloten natuurgebied tijdens het broedseizoen',
-            description: 'Een BOA spreekt een wandelaar aan die zich in verboden gebied bevindt en wil een bekeuring uitschrijven. De wandelaar weigert mee te werken, blijft discussiëren en loopt dreigend dichterbij.',
-            centralistMessage: 'Jullie hebben maximaal 10 minuten de tijd om de situatie op een professionele manier af te handelen.',
+            location: 'Bos nabij de dumplocatie',
+            description: 'Tijdens het verdere onderzoek wordt tussen het gedumpte materiaal een verscheurde afleverbon aangetroffen. Mogelijk vertelt deze bon meer over de herkomst van het afval.',
+            centralistMessage: 'Jullie hebben maximaal 10 minuten om de ontbrekende delen te vinden, de afleverbon te herstellen en de herkomst van het materiaal te achterhalen.',
           },
           assignment: {
-            title: 'Ondersteun de BOA',
-            description: 'Bepaal als groep wie het gesprek voert en handel de situatie professioneel af.',
+            title: 'Herstel de afleverbon',
+            description: 'Zoek de losse delen van de afleverbon en leg deze op de juiste manier bij elkaar. Gebruik de complete bon om de herkomst van het gedumpte materiaal te achterhalen.',
             objectives: [
-              'De rust bewaren',
-              'Professioneel communiceren',
-              'De situatie de-escaleren',
-              'De bekeuringssituatie correct afhandelen',
+              'De losse delen van de afleverbon vinden',
+              'De afleverbon reconstrueren',
+              'De relevante informatie op de bon herkennen',
+              'De herkomst van het materiaal vaststellen',
             ],
+            question: 'Van welk bedrijf is het gedumpte materiaal afkomstig?',
+            options: [
+              'Noord Bouw',
+              'De Groot Renovatie',
+              'Vos Bouw',
+              'Janssen Afbouw',
+            ],
+          },
+          result: {
+            successMessage: 'Herkomst achterhaald! Het gedumpte materiaal kan worden gekoppeld aan Vos Bouw. Of het bedrijf daadwerkelijk betrokken is bij de dumping, is nog onbekend.',
+            earnedLetter: 'L',
+          },
+        },
+
+        {
+          id: 3,
+          rightAnswer: 'VZ-314-K',
+          assessmentOptions: [
+            { id: 'a', value: 'witte bestelbus', label: 'Een witte bestelbus', color: '#E91A47' },
+            { id: 'b', value: 'rode werkjas', label: 'Een rode werkjas', color: '#0284C7' },
+            { id: 'c', value: 'vos bouw', label: 'Het logo van Vos Bouw', color: '#EA580C' },
+            { id: 'd', value: 'VZ-314-K', label: 'Kenteken VZ-314-K', color: '#5F9605' },
+          ],
+          state: {
+            isDismanteld: false,
+            timeLeft: true,
+          },
+          title: 'Het miniverhoor',
+          theme: 'Vraag door en ontdek',
+          card: {
+            label: 'Post 3',
+            summary: 'Ondervraag een getuige, luister goed en achterhaal welke cruciale informatie hij voor het onderzoek heeft.',
+            icon: 'message-circle',
+            accentColor: 'emerald',
+          },
+          timing: {
+            durationMinutes: 10,
+            warningAfterMinutes: 7,
+            startsWhen: 'De centralist de opdracht start',
+            isVisibleInApp: true,
+          },
+          situation: {
+            location: 'Bos nabij de dumplocatie',
+            description: 'Een getuige was rond het tijdstip van de afvaldumping met zijn hond in het bos. Mogelijk heeft hij iets gezien dat van belang is voor jullie onderzoek. De getuige vertelt niet uit zichzelf alles wat hij heeft waargenomen.',
+            centralistMessage: 'Jullie hebben maximaal 10 minuten om de getuige te spreken en de cruciale informatie voor het vervolgonderzoek te achterhalen.',
+          },
+          assignment: {
+            title: 'Ondervraag de getuige',
+            description: 'Voer een kort getuigenverhoor. Stel vragen, luister goed en vraag door op opvallende details. Bepaal samen welke informatie belangrijk kan zijn voor het vervolg van het onderzoek.',
+            objectives: [
+              'Open en gerichte vragen stellen',
+              'Goed luisteren naar de verklaring',
+              'Doorvragen op relevante details',
+              'Het belangrijkste aanknopingspunt voor het onderzoek achterhalen',
+            ],
+            question: 'Welke cruciale informatie heeft de getuige voor jullie onderzoek?',
+            inputPlaceholder: 'Voer jullie belangrijkste aanknopingspunt in',
+          },
+          actor: {
+            openingLine: 'Ik was hier met mijn hond aan het wandelen. Ik heb wel iets gezien wat ik vreemd vond.',
+            information: [
+              'De getuige zag een witte bestelbus',
+              'De bestelbus stond bij de dumplocatie',
+              'Er waren twee personen bij het voertuig',
+              'De personen haalden spullen uit de bestelbus',
+              'Eén persoon droeg een rode werkjas',
+              'Op de bestelbus stond het logo van Vos Bouw',
+              'De bestelbus vertrok daarna uit het gebied',
+              'De getuige heeft bij het wegrijden het kenteken VZ-314-K gezien',
+            ],
+            instruction: 'Noem het kenteken niet uit jezelf. Geef informatie op basis van de vragen die de deelnemers stellen. Wanneer zij gericht doorvragen naar het voertuig, herkenningspunten of wat je bij het wegrijden hebt gezien, maak je duidelijk dat je ook het kenteken hebt waargenomen.',
+          },
+          result: {
+            successMessage: 'Cruciale informatie gevonden! Het aanknopingspunt wordt toegevoegd aan het onderzoek. Gebruik deze informatie bij de volgende opdracht.',
+            earnedLetter: 'G',
+          },
+        },
+
+        {
+          id: 4,
+          rightAnswer: 'jeroen vos',
+          assessmentOptions: [
+            { id: 'a', value: 'mark de wit', label: 'Mark de Wit', color: '#E91A47' },
+            { id: 'b', value: 'jeroen vos', label: 'Jeroen Vos', color: '#0284C7' },
+            { id: 'c', value: 'peter de jong', label: 'Peter de Jong', color: '#EA580C' },
+            { id: 'd', value: 'thomas smit', label: 'Thomas Smit', color: '#5F9605' },
+          ],
+          state: {
+            isDismanteld: false,
+            timeLeft: true,
+          },
+          title: 'Digitaal opsporen',
+          theme: 'Volg het digitale spoor',
+          card: {
+            label: 'Post 4',
+            summary: 'Gebruik de verzamelde informatie en een fictieve OSINT-omgeving om het digitale spoor te volgen en de vermoedelijke verdachte te identificeren.',
+            icon: 'monitor-search',
+            accentColor: 'rose',
+          },
+          timing: {
+            durationMinutes: 10,
+            warningAfterMinutes: 7,
+            startsWhen: 'De centralist de opdracht start',
+            isVisibleInApp: true,
+          },
+          situation: {
+            location: 'Binnenlocatie – digitaal onderzoek',
+            description: 'Jullie hebben tijdens het onderzoek verschillende aanknopingspunten verzameld. De informatie uit het getuigenverhoor kan een belangrijke doorbraak betekenen. Nu is het tijd om het digitale spoor te volgen.',
+            centralistMessage: '',
+          },
+          assignment: {
+            title: 'Identificeer de verdachte',
+            description: 'Gebruik de fictieve OSINT-onderzoeksomgeving. Onderzoek het aanknopingspunt uit het getuigenverhoor en combineer de gevonden informatie met jullie eerdere bevindingen.',
+            objectives: [
+              'Het aanknopingspunt uit het getuigenverhoor onderzoeken',
+              'De beschikbare digitale bronnen raadplegen',
+              'Informatie uit verschillende bronnen combineren',
+              'De vermoedelijke verdachte identificeren',
+            ],
+            question: 'Wie kan aan het voertuig en de afvaldumping worden gekoppeld?',
+            options: [
+              'Mark de Wit',
+              'Jeroen Vos',
+              'Peter de Jong',
+              'Thomas Smit',
+            ],
+          },
+          result: {
+            successMessage: 'Zaak opgelost! Jullie hebben de beschikbare informatie succesvol gecombineerd en de vermoedelijke verdachte geïdentificeerd.',
+            earnedLetter: 'H',
           },
         },
       ]);
 
       createApp({
         setup() {
+          const activeTab = ref('kaart');
+          const gpsTracking = ref(false);
+          const gpsStatus = ref('GPS uit');
+          const mapMessage = ref('Kaart wordt geladen...');
+          const gpxName = ref('');
+          const gpxPointCount = ref(0);
+          const DEFAULT_GPX_URL = './gpx/route.gpx';
+
+          const ELSPETERWEG_CENTER = [52.2860506, 5.9525611];
+          let leafletMap = null;
+          let gpsWatchId = null;
+          let gpsMarker = null;
+          let gpsAccuracyCircle = null;
+          let gpxLayer = null;
+          let defaultGpxLoadStarted = false;
           const chars = ref([
             'V',
             'E',
@@ -470,6 +1320,10 @@
           const flippedCardIds = ref([]);
           const assessmentTimers = ref({});
           const assessmentAnswers = ref({});
+          const assessmentWireLocked = ref({});
+          const cutWireKey = ref('');
+          const cutWireDirection = ref(120);
+          const wireSwipeStarts = new Map();
           const defusedAssessmentIds = ref([]);
           const confettiVisible = ref(false);
           const wrongAnswerPulse = ref(false);
@@ -483,9 +1337,110 @@
             rotation: `${540 + ((index * 47) % 720)}deg`,
             duration: `${1.8 + (index % 7) * 0.22}s`,
             delay: `${(index % 14) * 55}ms`,
-            color: ['bg-red-500', 'bg-yellow-400', 'bg-emerald-500', 'bg-blue-500', 'bg-fuchsia-500'][index % 5],
+            color: ['bg-[#E82F72]', 'bg-[#A0C51E]', 'bg-[#2BB6B7]', 'bg-[#303C54]', 'bg-[#EA580C]'][index % 5],
           }));
           const gameStarted = ref(false);
+
+          // Geluidseffecten. Alle bestanden worden relatief uit ./sound geladen.
+          const soundPaths = {
+            clock: './sound/clock.mp3',
+            typing: './sound/typing.mp3',
+            explosion: './sound/explosion.mp3',
+            confetti: './sound/confetti.mp3',
+            goodPassword: './sound/good_password.mp3',
+            xp: './sound/xp.mp3',
+            error: './sound/error.mp3',
+          };
+          const sounds = Object.fromEntries(
+            Object.entries(soundPaths).map(([name, source]) => [name, new Audio(source)]),
+          );
+          sounds.clock.loop = true;
+          sounds.clock.volume = .28;
+          sounds.typing.volume = .4;
+          sounds.explosion.volume = .82;
+          sounds.confetti.volume = .62;
+          sounds.goodPassword.volume = .72;
+          sounds.xp.volume = .5;
+          sounds.error.volume = .65;
+          let audioUnlocked = false;
+
+          function playSound(name, { restart = true } = {}) {
+            const audio = sounds[name];
+            if (!audio) return;
+
+            if (restart && !audio.paused) {
+              audio.pause();
+            }
+            if (restart) {
+              try { audio.currentTime = 0; } catch (_) {}
+            }
+
+            const playPromise = audio.play();
+            if (playPromise?.catch) {
+              playPromise.catch(() => {});
+            }
+          }
+
+          function stopSound(name, reset = true) {
+            const audio = sounds[name];
+            if (!audio) return;
+            audio.pause();
+            if (reset) {
+              try { audio.currentTime = 0; } catch (_) {}
+            }
+          }
+
+          function unlockAudio() {
+            if (audioUnlocked) {
+              syncClockSound();
+              return;
+            }
+
+            audioUnlocked = true;
+            const audio = sounds.clock;
+            const previousVolume = audio.volume;
+            audio.volume = 0;
+            const playPromise = audio.play();
+            if (playPromise?.then) {
+              playPromise
+                .then(() => {
+                  audio.pause();
+                  audio.currentTime = 0;
+                  audio.volume = previousVolume;
+                  syncClockSound();
+                })
+                .catch(() => {
+                  audio.volume = previousVolume;
+                });
+            } else {
+              audio.volume = previousVolume;
+            }
+          }
+
+          function hasActiveBombClock() {
+            if (!gameStarted.value || gameState.value?.hasAnswer || scoreScreenVisible.value) return false;
+
+            return Object.entries(assessmentTimers.value).some(([assessmentId, secondsLeft]) => {
+              const assessment = assesmentData.value.find(
+                (item) => String(item.id) === String(assessmentId),
+              );
+              const remainingSeconds = Number(secondsLeft);
+              return remainingSeconds > 0
+                && remainingSeconds <= 60
+                && assessment?.state.timeLeft
+                && !assessment?.state.isDismanteld;
+            });
+          }
+
+          function syncClockSound() {
+            if (!audioUnlocked) return;
+            if (hasActiveBombClock()) {
+              if (sounds.clock.paused) playSound('clock', { restart: false });
+            } else {
+              stopSound('clock');
+            }
+          }
+
           const gameState = ref({
             totalWrongInputs: 0,
             timePlayed: {
@@ -497,13 +1452,40 @@
             hasAnswer: false,
             hasPunishment: false,
             punishmentTime: 0,
+            finalScore: null,
+            finalXp: null,
           });
+
+          // XP-model. De live XP en eind-XP gebruiken exact dezelfde berekening.
+          // +500 XP per opgeloste opdracht, -100 XP per foute toegangscode en -50 XP per verstreken half uur.
+          const XP_PER_ASSESSMENT = 500;
+          const WRONG_CODE_XP_PENALTY = 100;
+          const HALF_HOUR_XP_PENALTY = 50;
+
+          const scoreScreenVisible = ref(false);
+          const scoreStage = ref(0);
+          const scoreAnimationDone = ref(false);
+          const animatedScore = ref(0);
+          let scoreAnimationFrame = null;
+          let scoreTimers = [];
+
+          const solvedAssessmentCount = computed(() => defusedAssessmentIds.value.length);
+          const halfHourBlocks = computed(() => Math.floor(gameState.value.timePlayed.totalSeconds / (30 * 60)));
+          const currentXp = computed(() => {
+            const earnedXp = solvedAssessmentCount.value * XP_PER_ASSESSMENT;
+            const wrongCodePenalty = gameState.value.totalWrongInputs * WRONG_CODE_XP_PENALTY;
+            const timePenalty = halfHourBlocks.value * HALF_HOUR_XP_PENALTY;
+            return Math.max(0, earnedXp - wrongCodePenalty - timePenalty);
+          });
+          const scoreBreakdown = computed(() => calculateScoreBreakdown());
+
           const gameStorageKey = 'spvChallengeGameState';
           let gameTimer = null;
 
           function startGame() {
             if (gameStarted.value) return;
 
+            unlockAudio();
             gameStarted.value = true;
             startGameLoop();
           }
@@ -516,6 +1498,7 @@
           function saveGameState() {
             const savedGame = {
               gameStarted: gameStarted.value,
+              activeTab: activeTab.value,
               gameState: gameState.value,
               studentAnswers: studentAnswers.value,
               assessmentCompletion: assessmentCompletion.value,
@@ -540,6 +1523,7 @@
               const savedGame = JSON.parse(storedGame);
 
               gameStarted.value = savedGame.gameStarted === true;
+              activeTab.value = savedGame.activeTab === 'opdrachten' ? 'opdrachten' : 'kaart';
               studentAnswers.value = Array.isArray(savedGame.studentAnswers)
                 ? savedGame.studentAnswers.slice(0, chars.value.length)
                 : studentAnswers.value;
@@ -588,7 +1572,7 @@
                 };
               }
 
-              checkCode();
+              checkCode(false, true);
 
               if (gameStarted.value) {
                 startGameLoop();
@@ -612,31 +1596,108 @@
             return String(answer).toLowerCase().replace(/\s+/g, '');
           }
 
-          function updateAssessmentAnswer(assessmentId, event) {
-            assessmentAnswers.value[assessmentId] = event.target.value;
+          function wireSwipeKey(assessmentId, optionId) {
+            return `${assessmentId}:${optionId}`;
           }
 
-          function submitAssessmentAnswer(assessment) {
-            const enteredAnswer = assessmentAnswers.value[assessment.id] ?? '';
-            const isCorrect =
-              normalizeAnswer(enteredAnswer) === normalizeAnswer(assessment.answer);
+          function resetWireTransform(element) {
+            if (!element) return;
+            element.style.setProperty('--swipe-x', '0px');
+          }
 
-            if (!isCorrect) {
-              triggerWrongAnswerPulse();
+          function startWireSwipe(assessmentId, optionId, event) {
+            if (assessmentWireLocked.value[assessmentId]) return;
+
+            const key = wireSwipeKey(assessmentId, optionId);
+            wireSwipeStarts.set(key, {
+              startX: event.clientX,
+              element: event.currentTarget,
+              pointerId: event.pointerId,
+            });
+
+            event.currentTarget?.setPointerCapture?.(event.pointerId);
+          }
+
+          function moveWireSwipe(assessmentId, optionId, event) {
+            const key = wireSwipeKey(assessmentId, optionId);
+            const swipe = wireSwipeStarts.get(key);
+            if (!swipe) return;
+
+            const deltaX = Math.max(-110, Math.min(110, event.clientX - swipe.startX));
+            swipe.element?.style.setProperty('--swipe-x', `${deltaX}px`);
+          }
+
+          function cancelWireSwipe(assessmentId, optionId, event) {
+            const key = wireSwipeKey(assessmentId, optionId);
+            const swipe = wireSwipeStarts.get(key);
+            resetWireTransform(swipe?.element);
+            wireSwipeStarts.delete(key);
+            event?.currentTarget?.releasePointerCapture?.(event.pointerId);
+          }
+
+          function finishWireSwipe(assessment, option, event) {
+            const key = wireSwipeKey(assessment.id, option.id);
+            const swipe = wireSwipeStarts.get(key);
+            if (!swipe) return;
+
+            const deltaX = event.clientX - swipe.startX;
+            wireSwipeStarts.delete(key);
+            event.currentTarget?.releasePointerCapture?.(event.pointerId);
+
+            if (Math.abs(deltaX) < 64) {
+              resetWireTransform(swipe.element);
               return;
             }
 
-            if (!defusedAssessmentIds.value.includes(assessment.id)) {
-              defusedAssessmentIds.value = [...defusedAssessmentIds.value, assessment.id];
-            }
-
-            assessment.state.isDismanteld = true;
-            completeAssessmentInTime(assessment.id);
-
-            showConfetti();
+            cutWireDirection.value = deltaX < 0 ? -180 : 180;
+            cutAssessmentWire(assessment, option);
           }
 
+          function cutAssessmentWire(assessment, option) {
+            if (
+              assessmentWireLocked.value[assessment.id] ||
+              assessment.state.isDismanteld ||
+              !assessment.state.timeLeft
+            ) {
+              return;
+            }
+
+            assessmentWireLocked.value = {
+              ...assessmentWireLocked.value,
+              [assessment.id]: true,
+            };
+            assessmentAnswers.value[assessment.id] = option.value;
+            cutWireKey.value = wireSwipeKey(assessment.id, option.id);
+
+            window.setTimeout(() => {
+              const isCorrect =
+                normalizeAnswer(option.value) === normalizeAnswer(assessment.rightAnswer);
+
+              if (!isCorrect) {
+                assessment.state.timeLeft = false;
+                assessmentTimers.value[assessment.id] = 0;
+                triggerExplosion(assessment);
+                syncClockSound();
+                return;
+              }
+
+              if (!defusedAssessmentIds.value.includes(assessment.id)) {
+                defusedAssessmentIds.value = [...defusedAssessmentIds.value, assessment.id];
+              }
+
+              assessment.state.isDismanteld = true;
+              completeAssessmentInTime(assessment.id);
+              showConfetti();
+              syncClockSound();
+            }, 180);
+          }
+
+          function updateAssessmentAnswer() {}
+
+          function submitAssessmentAnswer() {}
+
           function showConfetti() {
+            playSound('confetti');
             confettiVisible.value = true;
             window.setTimeout(() => {
               confettiVisible.value = false;
@@ -653,6 +1714,7 @@
           function triggerExplosion(assessment) {
             if (explodedAssessmentIds.value.includes(assessment.id)) return;
 
+            playSound('explosion');
             explodedAssessmentIds.value = [
               ...explodedAssessmentIds.value,
               assessment.id,
@@ -667,25 +1729,117 @@
           }
 
           function handleLetterInput(index, event) {
+            playSound('typing');
             const value = event.target.value.slice(0, 1).toUpperCase();
             studentAnswers.value[index] = value;
             event.target.value = value;
             checkCode(true);
           }
 
-          function checkCode(isStudentAttempt = false) {
+          function calculateScoreBreakdown() {
+            const elapsedSeconds = gameState.value.timePlayed.totalSeconds;
+            const wrongAttempts = gameState.value.totalWrongInputs;
+            const solved = solvedAssessmentCount.value;
+            const elapsedHalfHours = halfHourBlocks.value;
+            const baseXp = solved * XP_PER_ASSESSMENT;
+            const wrongPenalty = wrongAttempts * WRONG_CODE_XP_PENALTY;
+            const timePenalty = elapsedHalfHours * HALF_HOUR_XP_PENALTY;
+            const xp = Math.max(0, baseXp - wrongPenalty - timePenalty);
+
+            return {
+              elapsedSeconds,
+              solved,
+              baseXp,
+              wrongAttempts,
+              wrongPenalty,
+              halfHourBlocks: elapsedHalfHours,
+              timePenalty,
+              xp,
+              total: xp,
+            };
+          }
+
+          function clearScoreAnimation() {
+            scoreTimers.forEach((timerId) => window.clearTimeout(timerId));
+            scoreTimers = [];
+
+            if (scoreAnimationFrame !== null) {
+              window.cancelAnimationFrame(scoreAnimationFrame);
+              scoreAnimationFrame = null;
+            }
+          }
+
+          function animateScoreValue(targetScore) {
+            const duration = 1400;
+            const startedAt = performance.now();
+
+            function frame(now) {
+              const progress = Math.min(1, (now - startedAt) / duration);
+              const eased = 1 - Math.pow(1 - progress, 3);
+              animatedScore.value = Math.round(targetScore * eased);
+
+              if (progress < 1) {
+                scoreAnimationFrame = window.requestAnimationFrame(frame);
+                return;
+              }
+
+              animatedScore.value = targetScore;
+              scoreAnimationDone.value = true;
+              scoreAnimationFrame = null;
+            }
+
+            scoreAnimationFrame = window.requestAnimationFrame(frame);
+          }
+
+          function startScoreCalculation() {
+            clearScoreAnimation();
+            scoreScreenVisible.value = true;
+            scoreStage.value = 0;
+            scoreAnimationDone.value = false;
+            animatedScore.value = 0;
+
+            const finalBreakdown = calculateScoreBreakdown();
+            gameState.value.finalScore = finalBreakdown.xp;
+            gameState.value.finalXp = finalBreakdown.xp;
+
+            scoreTimers = [
+              window.setTimeout(() => { scoreStage.value = 1; }, 450),
+              window.setTimeout(() => { scoreStage.value = 2; }, 1050),
+              window.setTimeout(() => { scoreStage.value = 3; }, 1650),
+              window.setTimeout(() => { animateScoreValue(finalBreakdown.xp); }, 2250),
+            ];
+          }
+
+          function closeScoreScreen() {
+            scoreScreenVisible.value = false;
+          }
+
+          function checkCode(isStudentAttempt = false, suppressScoreAnimation = false) {
             const allFieldsFilled = studentAnswers.value.every(
               (answer) => answer.length === 1,
             );
             const allLettersCorrect = studentAnswers.value.every(
               (answer, index) => answer === chars.value[index],
             );
+            const wasCracked = codeCracked.value;
 
             codeCracked.value = allFieldsFilled && allLettersCorrect;
             codeIncorrect.value = allFieldsFilled && !allLettersCorrect;
 
             if (codeCracked.value) {
               gameState.value.hasAnswer = true;
+
+              if (!wasCracked) {
+                playSound('goodPassword');
+                stopSound('clock');
+                const finalBreakdown = calculateScoreBreakdown();
+                gameState.value.finalScore = finalBreakdown.xp;
+                gameState.value.finalXp = finalBreakdown.xp;
+
+                if (!suppressScoreAnimation) {
+                  startScoreCalculation();
+                }
+              }
             }
 
             if (codeIncorrect.value && isStudentAttempt) {
@@ -694,6 +1848,7 @@
           }
 
           function registerWrongInput() {
+            playSound('error');
             gameState.value.totalWrongInputs += 1;
 
             if (
@@ -720,6 +1875,38 @@
 
           function formatAssessmentTime(totalSeconds) {
             return formatPunishmentTime(totalSeconds);
+          }
+
+          function fuseProgress(assessment) {
+            const totalSeconds = assessment.timing.durationMinutes * 60;
+            const secondsLeft = assessmentTimers.value[assessment.id] ?? totalSeconds;
+            return Math.max(0, Math.min(1, secondsLeft / totalSeconds));
+          }
+
+          function fuseDashArray(assessment) {
+            return `${(fuseProgress(assessment) * 100).toFixed(2)} 100`;
+          }
+
+          function cubicCoordinate(t, start, controlOne, controlTwo, end) {
+            const inverse = 1 - t;
+            return inverse ** 3 * start
+              + 3 * inverse ** 2 * t * controlOne
+              + 3 * inverse * t ** 2 * controlTwo
+              + t ** 3 * end;
+          }
+
+          function fuseTipTransform(assessment) {
+            const progress = fuseProgress(assessment);
+            const firstHalf = progress <= .5;
+            const t = firstHalf ? progress * 2 : (progress - .5) * 2;
+            const x = firstHalf
+              ? cubicCoordinate(t, 408, 420, 505, 590)
+              : cubicCoordinate(t, 590, 680, 720, 675);
+            const y = firstHalf
+              ? cubicCoordinate(t, 230, 118, 68, 88)
+              : cubicCoordinate(t, 88, 109, 190, 285);
+
+            return `translate(${x.toFixed(1)} ${y.toFixed(1)})`;
           }
 
           function updateGameTimer() {
@@ -765,23 +1952,338 @@
                 }
               }
             });
+
+            syncClockSound();
           }
 
+          function initMap() {
+            if (leafletMap) return true;
+
+            const mapElement = document.getElementById('spv-map');
+            if (!mapElement) return false;
+
+            if (!window.L) {
+              mapMessage.value = 'De kaartbibliotheek kon niet worden geladen. Controleer de internetverbinding.';
+              return false;
+            }
+
+            leafletMap = window.L.map(mapElement, {
+              zoomControl: true,
+              attributionControl: true,
+            }).setView(ELSPETERWEG_CENTER, 14);
+
+            window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '&copy; OpenStreetMap-bijdragers',
+            }).addTo(leafletMap);
+
+            mapMessage.value = '';
+            window.setTimeout(() => leafletMap?.invalidateSize(), 0);
+            return true;
+          }
+
+          function toggleGpsTracking() {
+            if (gpsTracking.value) {
+              stopGpsTracking();
+              return;
+            }
+
+            startGpsTracking();
+          }
+
+          function startGpsTracking() {
+            if (!navigator.geolocation) {
+              mapMessage.value = 'Live GPS wordt niet ondersteund door deze browser.';
+              gpsStatus.value = 'GPS niet beschikbaar';
+              return;
+            }
+
+            if (!initMap()) return;
+
+            gpsTracking.value = true;
+            gpsStatus.value = 'GPS wordt gezocht...';
+            mapMessage.value = 'Sta locatietoegang toe om je positie live op de kaart te volgen.';
+
+            gpsWatchId = navigator.geolocation.watchPosition(
+              updateGpsPosition,
+              handleGpsError,
+              {
+                enableHighAccuracy: true,
+                maximumAge: 2000,
+                timeout: 15000,
+              },
+            );
+          }
+
+          function stopGpsTracking() {
+            if (gpsWatchId !== null && navigator.geolocation) {
+              navigator.geolocation.clearWatch(gpsWatchId);
+            }
+
+            gpsWatchId = null;
+            gpsTracking.value = false;
+            gpsStatus.value = 'GPS uit';
+            mapMessage.value = '';
+          }
+
+          function updateGpsPosition(position) {
+            if (!leafletMap || !window.L) return;
+
+            const { latitude, longitude, accuracy } = position.coords;
+            const location = [latitude, longitude];
+            const roundedAccuracy = Math.max(1, Math.round(accuracy || 0));
+
+            const gpsIcon = window.L.divIcon({
+              className: '',
+              html: '<div class="spv-gps-icon"><span class="spv-gps-pulse"></span><span class="spv-gps-dot"></span></div>',
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+            });
+
+            if (!gpsMarker) {
+              gpsMarker = window.L.marker(location, { icon: gpsIcon, zIndexOffset: 1000 }).addTo(leafletMap);
+              gpsMarker.bindTooltip('Jouw live locatie', { direction: 'top', offset: [0, -10] });
+            } else {
+              gpsMarker.setLatLng(location);
+            }
+
+            if (!gpsAccuracyCircle) {
+              gpsAccuracyCircle = window.L.circle(location, {
+                radius: roundedAccuracy,
+                color: '#2BB6B7',
+                fillColor: '#2BB6B7',
+                fillOpacity: .12,
+                weight: 1,
+              }).addTo(leafletMap);
+            } else {
+              gpsAccuracyCircle.setLatLng(location);
+              gpsAccuracyCircle.setRadius(roundedAccuracy);
+            }
+
+            gpsStatus.value = `GPS actief · nauwkeurigheid ±${roundedAccuracy} m`;
+            mapMessage.value = '';
+
+            if (gpsTracking.value) {
+              leafletMap.setView(location, Math.max(leafletMap.getZoom(), 17), { animate: true });
+            }
+          }
+
+          function handleGpsError(error) {
+            const messages = {
+              1: 'Locatietoegang is geweigerd. Geef deze site toestemming om je locatie te gebruiken.',
+              2: 'Je GPS-locatie kon niet worden bepaald.',
+              3: 'Het ophalen van je GPS-locatie duurde te lang.',
+            };
+
+            mapMessage.value = messages[error.code] || 'Er is een fout opgetreden bij het ophalen van je GPS-locatie.';
+            gpsStatus.value = 'GPS fout';
+
+            if (error.code === 1) {
+              stopGpsTracking();
+              gpsStatus.value = 'GPS geblokkeerd';
+              mapMessage.value = messages[1];
+            }
+          }
+
+          function parseGpxPoint(element) {
+            const lat = Number.parseFloat(element.getAttribute('lat'));
+            const lon = Number.parseFloat(element.getAttribute('lon'));
+            return Number.isFinite(lat) && Number.isFinite(lon) ? [lat, lon] : null;
+          }
+
+          function clearGpx() {
+            if (gpxLayer && leafletMap) {
+              leafletMap.removeLayer(gpxLayer);
+            }
+
+            gpxLayer = null;
+            gpxName.value = '';
+            gpxPointCount.value = 0;
+          }
+
+          function renderGpxSource(source, displayName = 'route.gpx') {
+            if (!initMap()) return;
+
+            const xml = new DOMParser().parseFromString(source, 'application/xml');
+
+            if (xml.getElementsByTagName('parsererror').length) {
+              throw new Error('Ongeldig GPX-bestand');
+            }
+
+            clearGpx();
+            gpxLayer = window.L.featureGroup().addTo(leafletMap);
+
+            let pointCount = 0;
+            let layerCount = 0;
+            const trackSegments = Array.from(xml.getElementsByTagName('trkseg'));
+
+            trackSegments.forEach((segment) => {
+              const points = Array.from(segment.getElementsByTagName('trkpt'))
+                .map(parseGpxPoint)
+                .filter(Boolean);
+
+              pointCount += points.length;
+
+              if (points.length >= 2) {
+                window.L.polyline(points, {
+                  color: '#E82F72',
+                  weight: 5,
+                  opacity: .9,
+                  lineJoin: 'round',
+                }).addTo(gpxLayer);
+                layerCount += 1;
+              } else if (points.length === 1) {
+                window.L.circleMarker(points[0], {
+                  radius: 5,
+                  color: '#E82F72',
+                  fillColor: '#E82F72',
+                  fillOpacity: 1,
+                }).addTo(gpxLayer);
+                layerCount += 1;
+              }
+            });
+
+            const routes = Array.from(xml.getElementsByTagName('rte'));
+            routes.forEach((route) => {
+              const points = Array.from(route.getElementsByTagName('rtept'))
+                .map(parseGpxPoint)
+                .filter(Boolean);
+
+              pointCount += points.length;
+
+              if (points.length >= 2) {
+                window.L.polyline(points, {
+                  color: '#E82F72',
+                  weight: 5,
+                  opacity: .9,
+                  dashArray: '10 8',
+                }).addTo(gpxLayer);
+                layerCount += 1;
+              } else if (points.length === 1) {
+                window.L.circleMarker(points[0], {
+                  radius: 5,
+                  color: '#E82F72',
+                  fillColor: '#E82F72',
+                  fillOpacity: 1,
+                }).addTo(gpxLayer);
+                layerCount += 1;
+              }
+            });
+
+            const waypoints = Array.from(xml.getElementsByTagName('wpt'));
+            waypoints.forEach((waypoint) => {
+              const point = parseGpxPoint(waypoint);
+              if (!point) return;
+
+              pointCount += 1;
+              const nameElement = waypoint.getElementsByTagName('name')[0];
+              const label = nameElement?.textContent?.trim() || 'GPX-punt';
+
+              window.L.circleMarker(point, {
+                radius: 6,
+                color: '#1A2842',
+                fillColor: '#A0C51E',
+                fillOpacity: 1,
+                weight: 2,
+              }).bindTooltip(label).addTo(gpxLayer);
+              layerCount += 1;
+            });
+
+            if (layerCount === 0) {
+              clearGpx();
+              throw new Error('Geen bruikbare track-, route- of waypointgegevens gevonden');
+            }
+
+            gpxName.value = displayName;
+            gpxPointCount.value = pointCount;
+            mapMessage.value = '';
+
+            const bounds = gpxLayer.getBounds();
+            if (bounds.isValid()) {
+              leafletMap.fitBounds(bounds.pad(.12), { maxZoom: 17 });
+            }
+          }
+
+          async function loadDefaultGpx() {
+            if (defaultGpxLoadStarted) return;
+            if (!initMap()) return;
+
+            defaultGpxLoadStarted = true;
+            mapMessage.value = 'Standaardroute wordt geladen...';
+
+            try {
+              const response = await fetch(DEFAULT_GPX_URL, { cache: 'no-store' });
+              if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+              }
+
+              const source = await response.text();
+              const displayName = DEFAULT_GPX_URL.split('/').pop() || 'route.gpx';
+              renderGpxSource(source, displayName);
+            } catch (error) {
+              clearGpx();
+              mapMessage.value = `Standaard GPX kon niet worden geladen uit ${DEFAULT_GPX_URL}. Plaats de route als gpx/route.gpx en open de app via een webserver.`;
+              console.warn('Standaard GPX laden mislukt.', error);
+            }
+          }
+
+          watch(currentXp, (newXp, oldXp) => {
+            if (oldXp === undefined || newXp === oldXp || !audioUnlocked) return;
+            window.setTimeout(() => playSound('xp'), newXp < oldXp ? 160 : 80);
+          });
+
+          watch(activeTab, (tab) => {
+            if (tab !== 'kaart') return;
+
+            window.setTimeout(() => {
+              if (initMap()) {
+                leafletMap.invalidateSize();
+                loadDefaultGpx();
+              }
+            }, 50);
+          });
+
           watch(
-            [gameStarted, gameState, studentAnswers, assessmentCompletion, assessmentTimers, assessmentAnswers, defusedAssessmentIds, explodedAssessmentIds, assesmentData],
+            [gameStarted, activeTab, gameState, studentAnswers, assessmentCompletion, assessmentTimers, assessmentAnswers, defusedAssessmentIds, explodedAssessmentIds, assesmentData],
             saveGameState,
             { deep: true },
           );
 
           onMounted(() => {
             restoreGameState();
+            window.addEventListener('pointerdown', unlockAudio, { once: true, passive: true });
+            window.addEventListener('keydown', unlockAudio, { once: true });
+            window.setTimeout(() => {
+              if (initMap()) {
+                loadDefaultGpx();
+              }
+              if (activeTab.value === 'kaart') {
+                leafletMap?.invalidateSize();
+              }
+            }, 0);
           });
 
           onUnmounted(() => {
+            clearScoreAnimation();
+            Object.values(sounds).forEach((audio) => {
+              audio.pause();
+              try { audio.currentTime = 0; } catch (_) {}
+            });
+
             if (gameTimer !== null) {
               window.clearInterval(gameTimer);
             }
+
+            if (gpsWatchId !== null && navigator.geolocation) {
+              navigator.geolocation.clearWatch(gpsWatchId);
+            }
+
+            if (leafletMap) {
+              leafletMap.remove();
+              leafletMap = null;
+            }
           });
+
 
           function isLetterVisible(charIndex) {
             const assessmentId = Object.keys(assessmentCharIndexes.value).find(
@@ -798,9 +2300,11 @@
           }
 
           function startAssessmentTimer(assessment) {
+            unlockAudio();
             if (assessmentTimers.value[assessment.id] === undefined) {
               assessmentTimers.value[assessment.id] = assessment.timing.durationMinutes * 60;
             }
+            syncClockSound();
           }
 
           function turnCard(assessment) {
@@ -817,6 +2321,13 @@
 
           return {
             assesmentData,
+            activeTab,
+            gpsTracking,
+            gpsStatus,
+            mapMessage,
+            gpxName,
+            gpxPointCount,
+            toggleGpsTracking,
             chars,
             assessmentCharIndexes,
             assessmentCompletion,
@@ -826,6 +2337,9 @@
             flippedCardIds,
             assessmentTimers,
             assessmentAnswers,
+            assessmentWireLocked,
+            cutWireKey,
+            cutWireDirection,
             defusedAssessmentIds,
             confettiVisible,
             wrongAnswerPulse,
@@ -835,6 +2349,14 @@
             confettiPieces,
             gameStarted,
             gameState,
+            currentXp,
+            scoreBreakdown,
+            scoreScreenVisible,
+            scoreStage,
+            scoreAnimationDone,
+            animatedScore,
+            startScoreCalculation,
+            closeScoreScreen,
             startGame,
             saveGameState,
             restoreGameState,
@@ -842,6 +2364,11 @@
             normalizeAnswer,
             updateAssessmentAnswer,
             submitAssessmentAnswer,
+            startWireSwipe,
+            moveWireSwipe,
+            finishWireSwipe,
+            cancelWireSwipe,
+            cutAssessmentWire,
             showConfetti,
             triggerWrongAnswerPulse,
             triggerExplosion,
@@ -851,6 +2378,8 @@
             formatPunishmentTime,
             formatTimePlayed,
             formatAssessmentTime,
+            fuseDashArray,
+            fuseTipTransform,
             updateGameTimer,
             isLetterVisible,
             isCardFlipped,
