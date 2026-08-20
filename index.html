@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -164,39 +164,16 @@
         </div>
       </div>
 
-      <aside
-        class="fixed left-4 top-4 z-50 min-w-40 rounded-xl border border-slate-200 bg-white px-5 py-4 text-center shadow-lg"
-        role="timer"
-      >
-        <p class="text-xs font-bold uppercase tracking-wider text-slate-500">Speeltijd</p>
-        <p class="mt-1 font-mono text-2xl font-bold tabular-nums text-slate-800">
-          {{ formatTimePlayed(gameState.timePlayed) }}
-        </p>
-        <p class="mt-2 border-t border-slate-200 pt-2 text-sm text-slate-600">
-          Foute pogingen:
-          <span class="font-bold text-slate-900">{{ gameState.totalWrongInputs }}</span>
-        </p>
-      </aside>
-
-      <aside
-        v-if="gameState.hasPunishment"
-        class="fixed right-4 top-4 z-50 min-w-40 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-center shadow-lg"
-        role="timer"
-        aria-live="polite"
-      >
-        <p class="text-xs font-bold uppercase tracking-wider text-red-600">Straftijd</p>
-        <p class="mt-1 font-mono text-3xl font-bold tabular-nums text-red-800">
-          {{ formatPunishmentTime(gameState.punishmentTime) }}
-        </p>
-      </aside>
-
-      <main class="mx-auto flex min-h-screen max-w-7xl flex-col px-6 py-10 lg:px-8">
-        <section aria-label="Challengewoord" class="overflow-x-auto py-8">
-          <div class="mx-auto flex min-w-max justify-center gap-2 sm:gap-4">
+      <main class="mx-auto grid min-h-screen w-full max-w-7xl content-start gap-6 px-4 py-5 sm:px-6 sm:py-8 lg:px-8">
+        <section aria-label="Challengewoord" class="rounded-2xl border border-slate-200 bg-white px-3 py-5 shadow-sm sm:px-6 sm:py-7">
+          <p class="mb-4 text-center text-xs font-bold uppercase tracking-[0.22em] text-indigo-600">
+            Veiligheidscode
+          </p>
+          <div class="mx-auto grid w-full max-w-2xl grid-cols-10 gap-1 sm:gap-3">
             <label
               v-for="(char, index) in chars"
               :key="index"
-              class="flex flex-col items-center gap-2"
+              class="flex min-w-0 flex-col items-center gap-1.5"
             >
               <span class="sr-only">Letter {{ index + 1 }}</span>
               <input
@@ -205,7 +182,7 @@
                 maxlength="1"
                 autocomplete="off"
                 :disabled="gameState.hasPunishment"
-                class="h-12 w-10 border-0 border-b-2 bg-transparent text-center text-xl font-bold uppercase outline-none transition focus:ring-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:opacity-60 sm:w-12"
+                class="h-10 w-full min-w-0 border-0 border-b-2 bg-transparent p-0 text-center text-lg font-bold uppercase outline-none transition focus:ring-0 disabled:cursor-not-allowed disabled:border-slate-300 disabled:text-slate-400 disabled:opacity-60 sm:h-12 sm:text-xl"
                 :class="isLetterVisible(index) && !gameState.hasPunishment ? 'border-emerald-500 text-emerald-700' : 'border-slate-400 text-slate-900 focus:border-indigo-600'"
                 @input="handleLetterInput(index, $event)"
               />
@@ -229,11 +206,47 @@
           </p>
         </section>
 
-        <section class="grid gap-6 py-16 sm:grid-cols-2 lg:grid-cols-3">
+        <section aria-label="Gamestats" class="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <div class="rounded-2xl bg-slate-900 px-4 py-4 text-center text-white shadow-sm" role="timer">
+            <p class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">Speeltijd</p>
+            <p class="mt-1 font-mono text-xl font-black tabular-nums sm:text-2xl">
+              {{ formatTimePlayed(gameState.timePlayed) }}
+            </p>
+          </div>
+
+          <div class="rounded-2xl border border-slate-200 bg-white px-4 py-4 text-center shadow-sm">
+            <p class="text-[0.65rem] font-bold uppercase tracking-widest text-slate-500">Foute pogingen</p>
+            <p class="mt-1 font-mono text-xl font-black tabular-nums text-slate-900 sm:text-2xl">
+              {{ gameState.totalWrongInputs }}
+            </p>
+          </div>
+
+          <div
+            class="col-span-2 rounded-2xl border px-4 py-4 text-center shadow-sm sm:col-span-1"
+            :class="gameState.hasPunishment ? 'border-red-200 bg-red-50' : 'border-emerald-200 bg-emerald-50'"
+            role="timer"
+            aria-live="polite"
+          >
+            <p
+              class="text-[0.65rem] font-bold uppercase tracking-widest"
+              :class="gameState.hasPunishment ? 'text-red-600' : 'text-emerald-700'"
+            >
+              Straftijd
+            </p>
+            <p
+              class="mt-1 font-mono text-xl font-black tabular-nums sm:text-2xl"
+              :class="gameState.hasPunishment ? 'text-red-800' : 'text-emerald-800'"
+            >
+              {{ formatPunishmentTime(gameState.punishmentTime) }}
+            </p>
+          </div>
+        </section>
+
+        <section aria-label="Opdrachten" class="grid min-w-0 gap-5 pb-6 sm:grid-cols-2 lg:grid-cols-3">
           <article
             v-for="assessment in assesmentData"
             :key="assessment.id"
-            class="h-[32rem] [perspective:1200px]"
+            class="h-[32rem] min-w-0 [perspective:1200px]"
           >
             <div
               class="relative h-full w-full transition-transform duration-500 [transform-style:preserve-3d]"
@@ -306,7 +319,7 @@
                   <textarea
                     :value="assessmentAnswers[assessment.id] ?? ''"
                     rows="3"
-                    :disabled="gameState.hasPunishment || assessment.state.isDismanteld || !assessment.state.timeLeft"
+                    :disabled="assessment.state.isDismanteld || !assessment.state.timeLeft"
                     class="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-indigo-600 focus:ring-2 focus:ring-indigo-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:opacity-60"
                     placeholder="Vul hier je antwoord in"
                     @input="updateAssessmentAnswer(assessment.id, $event)"
@@ -315,7 +328,7 @@
 
                 <button
                   type="button"
-                  :disabled="gameState.hasPunishment || assessment.state.isDismanteld || !assessment.state.timeLeft"
+                  :disabled="assessment.state.isDismanteld || !assessment.state.timeLeft"
                   class="mt-3 w-full rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
                   @click="submitAssessmentAnswer(assessment)"
                 >
